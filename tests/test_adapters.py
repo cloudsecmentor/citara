@@ -45,7 +45,15 @@ def test_mcp_server_exposes_hermes_tools():
     # Real FastMCP does not expose the same private testing registry as the fallback,
     # so this assertion is strongest for the local fallback and smoke-tests construction otherwise.
     if tool_names:
-        assert {"add_text_source", "search_knowledge", "retrieve_context_pack", "list_sources", "delete_source"}.issubset(tool_names)
+        assert {
+            "add_text_source",
+            "search_knowledge",
+            "retrieve_context_pack",
+            "list_sources",
+            "delete_source",
+            "get_ingestion_job_status",
+            "list_ingestion_jobs",
+        }.issubset(tool_names)
     assert server is not None
 
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from hermes_knowledge.core.db import get_session, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source
+from hermes_knowledge.core.jobs import get_ingestion_job, list_ingestion_jobs, list_ingestion_jobs_for_source, serialize_ingestion_job
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack, search_by_mode
 from hermes_knowledge.core.sources import delete_source, list_sources
 
@@ -39,7 +40,19 @@ def create_app() -> FastAPI:
             text=payload.text,
             collection_id=payload.collection_id,
         )
-        return {"source_id": source.id, "status": source.status}
+        jobs = list_ingestion_jobs_for_source(session, source.id, limit=1)
+        return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
+
+    @app.get("/jobs")
+    def jobs(limit: int = 50, session: Session = Depends(get_session)) -> dict:
+        return {"jobs": [serialize_ingestion_job(job) for job in list_ingestion_jobs(session, limit=limit)]}
+
+    @app.get("/jobs/{job_id}")
+    def job_status(job_id: str, session: Session = Depends(get_session)) -> dict:
+        job = get_ingestion_job(session, job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+        return serialize_ingestion_job(job)
 
     @app.get("/sources")
     def sources(session: Session = Depends(get_session)) -> dict:

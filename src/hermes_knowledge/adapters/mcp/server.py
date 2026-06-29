@@ -4,6 +4,10 @@ from collections.abc import Callable
 
 from hermes_knowledge.core.db import SessionLocal, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source as core_add_text_source
+from hermes_knowledge.core.jobs import get_ingestion_job as core_get_ingestion_job
+from hermes_knowledge.core.jobs import list_ingestion_jobs as core_list_ingestion_jobs
+from hermes_knowledge.core.jobs import list_ingestion_jobs_for_source as core_list_ingestion_jobs_for_source
+from hermes_knowledge.core.jobs import serialize_ingestion_job
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack as core_retrieve_context_pack
 from hermes_knowledge.core.retrieval.context_pack import search_by_mode as core_search_by_mode
 from hermes_knowledge.core.sources import delete_source as core_delete_source
@@ -33,11 +37,12 @@ def create_mcp_server() -> FastMCP:
         return {"status": "ok"}
 
     @server.tool()
-    def add_text_source(title: str, text: str, collection_id: str | None = None) -> dict[str, str]:
+    def add_text_source(title: str, text: str, collection_id: str | None = None) -> dict[str, str | None]:
         init_db()
         with SessionLocal() as session:
             source = core_add_text_source(session, title=title, text=text, collection_id=collection_id)
-            return {"source_id": source.id, "status": source.status}
+            jobs = core_list_ingestion_jobs_for_source(session, source.id, limit=1)
+            return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
 
     @server.tool()
     def search_knowledge(query: str, limit: int = 10, mode: str = "hybrid") -> dict:
@@ -81,6 +86,19 @@ def create_mcp_server() -> FastMCP:
                     for source in core_list_sources(session, limit=limit)
                 ]
             }
+
+    @server.tool()
+    def list_ingestion_jobs(limit: int = 50) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            return {"jobs": [serialize_ingestion_job(job) for job in core_list_ingestion_jobs(session, limit=limit)]}
+
+    @server.tool()
+    def get_ingestion_job_status(job_id: str) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            job = core_get_ingestion_job(session, job_id)
+            return {"found": False, "job_id": job_id} if job is None else {"found": True, **serialize_ingestion_job(job)}
 
     @server.tool()
     def delete_source(source_id: str) -> dict:

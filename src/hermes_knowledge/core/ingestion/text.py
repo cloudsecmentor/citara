@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from hermes_knowledge.core.chunking.simple import chunk_text
 from hermes_knowledge.core.config import settings
 from hermes_knowledge.core.embeddings.service import embed_chunks
+from hermes_knowledge.core.jobs import record_succeeded_ingestion_job
 from hermes_knowledge.core.models import Chunk, Source
 from hermes_knowledge.core.tenants import ensure_local_identity
 
@@ -51,6 +52,15 @@ def add_text_source(
 
     session.flush()
     embed_chunks(session, chunks, tenant_id=tenant_id)
+    record_succeeded_ingestion_job(
+        session,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        source_id=source.id,
+        job_type="text_ingestion",
+        input_json={"title": title, "collection_id": collection_id},
+        result_json={"source_id": source.id, "chunk_count": len(chunks)},
+    )
 
     session.commit()
     session.refresh(source)

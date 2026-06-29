@@ -51,6 +51,13 @@ The current vector-search implementation uses deterministic local test embedding
 by default. Docker uses `pgvector/pgvector:pg16`, and Alembic enables the
 `vector` extension before creating the `embeddings` table.
 
+Ingestion endpoints record inline job status rows:
+
+```bash
+curl http://127.0.0.1:8000/jobs
+curl http://127.0.0.1:8000/jobs/<job_id>
+```
+
 Verify whichever embedding provider is configured:
 
 ```bash
@@ -110,6 +117,8 @@ search_knowledge
 retrieve_context_pack
 list_sources
 delete_source
+list_ingestion_jobs
+get_ingestion_job_status
 ```
 
 `search_knowledge` and `retrieve_context_pack` accept `mode="keyword"`,

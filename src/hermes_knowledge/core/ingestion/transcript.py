@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from hermes_knowledge.core.config import settings
 from hermes_knowledge.core.embeddings.service import embed_chunks
+from hermes_knowledge.core.jobs import record_succeeded_ingestion_job
 from hermes_knowledge.core.models import Chunk, Source, TranscriptSegment
 from hermes_knowledge.core.tenants import ensure_local_identity
 
@@ -67,6 +68,15 @@ def add_transcript_source(
 
     session.flush()
     embed_chunks(session, chunks, tenant_id=tenant_id)
+    record_succeeded_ingestion_job(
+        session,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        source_id=source.id,
+        job_type="transcript_ingestion",
+        input_json={"show_title": show_title, "episode_title": episode_title, "collection_id": collection_id},
+        result_json={"source_id": source.id, "segment_count": len(chunks), "chunk_count": len(chunks)},
+    )
 
     session.commit()
     session.refresh(source)
