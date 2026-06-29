@@ -5,6 +5,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from hermes_knowledge.core.config import settings
+from hermes_knowledge.core.embeddings.service import embed_chunks
 from hermes_knowledge.core.models import Chunk, Source, TranscriptSegment
 from hermes_knowledge.core.tenants import ensure_local_identity
 
@@ -36,6 +37,7 @@ def add_transcript_source(
     session.add(source)
     session.flush()
 
+    chunks = []
     for index, segment_payload in enumerate(payload.get("segments", []), start=1):
         segment = TranscriptSegment(
             id=f"seg_{uuid4().hex}",
@@ -49,19 +51,22 @@ def add_transcript_source(
         )
         session.add(segment)
         session.flush()
-        session.add(
-            Chunk(
-                id=f"chk_{uuid4().hex}",
-                tenant_id=tenant_id,
-                source_id=source.id,
-                transcript_segment_id=segment.id,
-                chunk_index=index,
-                text=segment.text,
-                start_ms=segment.start_ms,
-                end_ms=segment.end_ms,
-                metadata_json={},
-            )
+        chunk = Chunk(
+            id=f"chk_{uuid4().hex}",
+            tenant_id=tenant_id,
+            source_id=source.id,
+            transcript_segment_id=segment.id,
+            chunk_index=index,
+            text=segment.text,
+            start_ms=segment.start_ms,
+            end_ms=segment.end_ms,
+            metadata_json={},
         )
+        session.add(chunk)
+        chunks.append(chunk)
+
+    session.flush()
+    embed_chunks(session, chunks, tenant_id=tenant_id)
 
     session.commit()
     session.refresh(source)

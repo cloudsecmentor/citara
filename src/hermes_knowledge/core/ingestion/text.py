@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from hermes_knowledge.core.chunking.simple import chunk_text
 from hermes_knowledge.core.config import settings
+from hermes_knowledge.core.embeddings.service import embed_chunks
 from hermes_knowledge.core.models import Chunk, Source
 from hermes_knowledge.core.tenants import ensure_local_identity
 
@@ -33,19 +34,23 @@ def add_text_source(
     session.add(source)
     session.flush()
 
+    chunks = []
     for index, chunk in enumerate(chunk_text(text), start=1):
-        session.add(
-            Chunk(
-                id=f"chk_{uuid4().hex}",
-                tenant_id=tenant_id,
-                source_id=source.id,
-                chunk_index=index,
-                text=chunk.text,
-                start_char=chunk.start_char,
-                end_char=chunk.end_char,
-                metadata_json={},
-            )
+        db_chunk = Chunk(
+            id=f"chk_{uuid4().hex}",
+            tenant_id=tenant_id,
+            source_id=source.id,
+            chunk_index=index,
+            text=chunk.text,
+            start_char=chunk.start_char,
+            end_char=chunk.end_char,
+            metadata_json={},
         )
+        session.add(db_chunk)
+        chunks.append(db_chunk)
+
+    session.flush()
+    embed_chunks(session, chunks, tenant_id=tenant_id)
 
     session.commit()
     session.refresh(source)

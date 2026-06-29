@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session
 
 from hermes_knowledge.core.db import get_session, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source
-from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack
-from hermes_knowledge.core.retrieval.keyword import search_knowledge
+from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack, search_by_mode
 from hermes_knowledge.core.sources import delete_source, list_sources
 
 
@@ -65,7 +64,11 @@ def create_app() -> FastAPI:
         return {"source_id": source_id, "deleted": True}
 
     @app.get("/search")
-    def search(q: str, limit: int = 10, session: Session = Depends(get_session)) -> dict:
+    def search(q: str, limit: int = 10, mode: str = "hybrid", session: Session = Depends(get_session)) -> dict:
+        try:
+            results = search_by_mode(session, query=q, limit=limit, mode=mode)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {
             "results": [
                 {
@@ -81,13 +84,16 @@ def create_app() -> FastAPI:
                     "start_ms": result.start_ms,
                     "end_ms": result.end_ms,
                 }
-                for result in search_knowledge(session, query=q, limit=limit)
+                for result in results
             ]
         }
 
     @app.get("/context-pack")
-    def context_pack(q: str, limit: int = 8, session: Session = Depends(get_session)) -> dict:
-        return retrieve_context_pack(session, query=q, limit=limit)
+    def context_pack(q: str, limit: int = 8, mode: str = "hybrid", session: Session = Depends(get_session)) -> dict:
+        try:
+            return retrieve_context_pack(session, query=q, limit=limit, mode=mode)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return app
 

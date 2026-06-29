@@ -4,6 +4,22 @@ from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator
+from pgvector.sqlalchemy import Vector
+
+
+class EmbeddingVector(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def __init__(self, dimensions: int = 8) -> None:
+        super().__init__()
+        self.dimensions = dimensions
+
+    def load_dialect_impl(self, dialect):  # type: ignore[no-untyped-def]
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(Vector(self.dimensions))
+        return dialect.type_descriptor(JSON())
 
 
 class Base(DeclarativeBase):
@@ -98,6 +114,19 @@ class Chunk(Base):
     start_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     end_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class Embedding(Base):
+    __tablename__ = "embeddings"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id"), nullable=False, index=True)
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"), nullable=False, index=True)
+    chunk_id: Mapped[str] = mapped_column(ForeignKey("chunks.id"), nullable=False, index=True)
+    embedding_model: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    vector: Mapped[list[float]] = mapped_column(EmbeddingVector(8), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 

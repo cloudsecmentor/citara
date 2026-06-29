@@ -15,11 +15,15 @@ def test_api_add_text_search_context_pack_and_delete_source():
         assert response.status_code == 200
         source_id = response.json()["source_id"]
 
-        search = client.get("/search", params={"q": "visible tiny"})
+        search = client.get("/search", params={"q": "visible tiny", "mode": "keyword"})
         assert search.status_code == 200
         assert any(result["source_id"] == source_id for result in search.json()["results"])
 
-        pack = client.get("/context-pack", params={"q": "next action"})
+        hybrid_search = client.get("/search", params={"q": "small visible", "mode": "hybrid"})
+        assert hybrid_search.status_code == 200
+        assert any(result["source_id"] == source_id for result in hybrid_search.json()["results"])
+
+        pack = client.get("/context-pack", params={"q": "next action", "mode": "hybrid"})
         assert pack.status_code == 200
         assert pack.json()["query"] == "next action"
         assert len(pack.json()["chunks"]) >= 1
