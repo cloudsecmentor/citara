@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hermes Knowledge Vault — Current Architecture</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+    :root { --bg:#020617; --panel:#0f172a; --text:#e2e8f0; --muted:#94a3b8; --grid:#1e293b; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'JetBrains Mono', monospace; }
+    .wrap { max-width:1280px; margin:0 auto; padding:32px 24px; }
+    .header { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    .pulse { width:11px; height:11px; border-radius:50%; background:#34d399; box-shadow:0 0 0 rgba(52,211,153,.7); animation:pulse 1.8s infinite; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,.7)} 70%{box-shadow:0 0 0 10px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+    h1 { font-size:24px; margin:0; }
+    .subtitle { color:var(--muted); font-size:13px; margin:0 0 24px 23px; }
+    .diagram-card { border:1px solid #1e293b; border-radius:16px; background:#020617; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+    svg { width:100%; height:auto; display:block; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:20px; }
+    .card { background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:16px; }
+    .card h3 { margin:0 0 10px; font-size:14px; }
+    .card ul { margin:0; padding-left:0; list-style:none; color:#cbd5e1; font-size:12px; line-height:1.7; }
+    .footer { margin-top:18px; color:#64748b; font-size:11px; text-align:center; }
+    @media (max-width:900px){ .cards{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><div class="pulse"></div><h1>Hermes Knowledge Vault — Current Architecture</h1></div>
+    <p class="subtitle">State after the first working vertical slice: text/transcript fixtures, search, context packs, FastAPI, MCP tools, Docker, Postgres, and Alembic.</p>
+
+    <div class="diagram-card">
+      <svg viewBox="0 0 1220 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hermes Knowledge Vault current architecture diagram">
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker>
+          <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#34d399"/></marker>
+          <marker id="arrowViolet" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#a78bfa"/></marker>
+          <style>
+            .title{font:700 15px 'JetBrains Mono'; fill:#e2e8f0}.label{font:600 12px 'JetBrains Mono'; fill:#e2e8f0}.small{font:400 9px 'JetBrains Mono'; fill:#94a3b8}.tiny{font:400 8px 'JetBrains Mono'; fill:#94a3b8}.box-bg{fill:#0f172a}.external{fill:rgba(30,41,59,.5);stroke:#94a3b8}.frontend{fill:rgba(8,51,68,.4);stroke:#22d3ee}.backend{fill:rgba(6,78,59,.4);stroke:#34d399}.db{fill:rgba(76,29,149,.4);stroke:#a78bfa}.bus{fill:rgba(251,146,60,.3);stroke:#fb923c}.cloud{fill:rgba(120,53,15,.3);stroke:#fbbf24}.security{fill:rgba(136,19,55,.4);stroke:#fb7185}.stroke{stroke-width:1.5}.flow{stroke:#94a3b8;stroke-width:1.7;fill:none;marker-end:url(#arrow)}.flow-green{stroke:#34d399;stroke-width:1.8;fill:none;marker-end:url(#arrowGreen)}.flow-violet{stroke:#a78bfa;stroke-width:1.8;fill:none;marker-end:url(#arrowViolet)}.dash{stroke-dasharray:6 4}.boundary{fill:rgba(15,23,42,.25);stroke:#475569;stroke-width:1.3;stroke-dasharray:8 5}.boundary-label{font:700 11px 'JetBrains Mono'; fill:#cbd5e1}.note{font:400 10px 'JetBrains Mono'; fill:#cbd5e1}
+          </style>
+        </defs>
+        <rect width="1220" height="820" fill="#020617"/>
+        <rect width="1220" height="820" fill="url(#grid)"/>
+
+        <!-- arrows behind components -->
+        <path class="flow-green" d="M180 145 C255 145 260 145 330 145"/>
+        <path class="flow-green" d="M180 235 C255 235 260 235 330 235"/>
+        <path class="flow-green" d="M500 185 C555 185 570 185 630 185"/>
+        <path class="flow" d="M760 185 C815 185 830 185 890 185"/>
+        <path class="flow-violet" d="M760 460 C815 460 830 460 890 460"/>
+        <path class="flow" d="M630 235 C560 280 540 340 540 395"/>
+        <path class="flow-violet" d="M540 535 C620 610 720 615 890 560"/>
+        <path class="flow" d="M540 335 C540 300 560 250 630 210"/>
+        <path class="flow" d="M170 620 C260 620 335 620 420 620"/>
+        <path class="flow" d="M560 620 C650 620 735 620 820 620"/>
+
+        <!-- deployment boundary -->
+        <rect x="300" y="70" width="880" height="560" rx="14" class="boundary"/>
+        <text x="318" y="96" class="boundary-label">Docker Compose local deployment</text>
+
+        <!-- external users -->
+        <rect x="50" y="105" width="130" height="80" rx="6" class="box-bg"/><rect x="50" y="105" width="130" height="80" rx="6" class="external stroke"/>
+        <text x="73" y="137" class="label">Hermes Agent</text><text x="72" y="156" class="small">primary user</text><text x="72" y="170" class="small">via MCP tools</text>
+        <rect x="50" y="205" width="130" height="80" rx="6" class="box-bg"/><rect x="50" y="205" width="130" height="80" rx="6" class="external stroke"/>
+        <text x="72" y="237" class="label">Developer/User</text><text x="72" y="256" class="small">curl / browser</text><text x="72" y="270" class="small">FastAPI</text>
+
+        <!-- adapters -->
+        <rect x="330" y="105" width="170" height="80" rx="6" class="box-bg"/><rect x="330" y="105" width="170" height="80" rx="6" class="frontend stroke"/>
+        <text x="358" y="135" class="label">MCP Adapter</text><text x="352" y="154" class="small">server.py</text><text x="352" y="168" class="small">tools: add/search/context</text>
+        <rect x="330" y="205" width="170" height="90" rx="6" class="box-bg"/><rect x="330" y="205" width="170" height="90" rx="6" class="frontend stroke"/>
+        <text x="358" y="236" class="label">FastAPI Adapter</text><text x="352" y="255" class="small">/sources/text</text><text x="352" y="269" class="small">/search, /context-pack</text><text x="352" y="283" class="small">/health</text>
+
+        <!-- core services boundary -->
+        <rect x="610" y="105" width="170" height="120" rx="6" class="box-bg"/><rect x="610" y="105" width="170" height="120" rx="6" class="backend stroke"/>
+        <text x="650" y="135" class="label">Core Services</text><text x="632" y="154" class="small">framework-independent</text><text x="632" y="171" class="small">text ingestion</text><text x="632" y="185" class="small">transcript ingestion</text><text x="632" y="199" class="small">podcast RSS discovery</text><text x="632" y="213" class="small">transcription interface</text>
+
+        <rect x="420" y="395" width="240" height="140" rx="6" class="box-bg"/><rect x="420" y="395" width="240" height="140" rx="6" class="backend stroke"/>
+        <text x="477" y="425" class="label">Retrieval Core</text><text x="442" y="446" class="small">deterministic keyword search</text><text x="442" y="463" class="small">simple chunk scoring</text><text x="442" y="480" class="small">context pack builder</text><text x="442" y="497" class="small">citation labels</text><text x="442" y="514" class="small">tenant-aware filtering</text>
+
+        <!-- database -->
+        <rect x="890" y="125" width="230" height="420" rx="6" class="box-bg"/><rect x="890" y="125" width="230" height="420" rx="6" class="db stroke"/>
+        <text x="955" y="155" class="label">Postgres 16</text><text x="943" y="174" class="small">schema via Alembic</text>
+        <text x="922" y="210" class="small">• tenants</text><text x="922" y="228" class="small">• users</text><text x="922" y="246" class="small">• collections</text><text x="922" y="264" class="small">• sources</text><text x="922" y="282" class="small">• transcript_segments</text><text x="922" y="300" class="small">• chunks</text><text x="922" y="318" class="small">• ingestion_jobs</text><text x="922" y="336" class="small">• alembic_version</text>
+        <line x1="918" y1="362" x2="1092" y2="362" stroke="#334155"/><text x="922" y="386" class="small">current migration:</text><text x="922" y="404" class="tiny">20260629_0001</text>
+
+        <!-- files/test inputs -->
+        <rect x="50" y="580" width="140" height="95" rx="6" class="box-bg"/><rect x="50" y="580" width="140" height="95" rx="6" class="external stroke"/>
+        <text x="82" y="610" class="label">Fixtures</text><text x="70" y="632" class="small">markdown notes</text><text x="70" y="648" class="small">transcript JSON</text><text x="70" y="664" class="small">RSS XML</text>
+        <rect x="420" y="580" width="140" height="95" rx="6" class="box-bg"/><rect x="420" y="580" width="140" height="95" rx="6" class="bus stroke"/>
+        <text x="455" y="610" class="label">Pytest</text><text x="440" y="632" class="small">10 passing tests</text><text x="440" y="648" class="small">fixture-backed</text><text x="440" y="664" class="small">API/core smoke</text>
+        <rect x="820" y="580" width="170" height="95" rx="6" class="box-bg"/><rect x="820" y="580" width="170" height="95" rx="6" class="cloud stroke"/>
+        <text x="853" y="610" class="label">Docker Runtime</text><text x="842" y="632" class="small">api :8000 healthy</text><text x="842" y="648" class="small">postgres :5432 healthy</text><text x="842" y="664" class="small">migration on startup</text>
+
+        <!-- deferred box -->
+        <rect x="80" y="350" width="190" height="140" rx="6" class="box-bg"/><rect x="80" y="350" width="190" height="140" rx="6" class="security stroke dash"/>
+        <text x="118" y="382" class="label">Deferred Later</text><text x="105" y="407" class="small">PDF/books</text><text x="105" y="424" class="small">screenshots/images/OCR</text><text x="105" y="441" class="small">general web articles</text><text x="105" y="458" class="small">vector embeddings</text>
+
+        <!-- legend -->
+        <rect x="770" y="720" width="360" height="58" rx="8" fill="rgba(15,23,42,.8)" stroke="#334155"/>
+        <circle cx="795" cy="742" r="5" fill="#22d3ee"/><text x="808" y="745" class="tiny">Adapters</text>
+        <circle cx="875" cy="742" r="5" fill="#34d399"/><text x="888" y="745" class="tiny">Core</text>
+        <circle cx="940" cy="742" r="5" fill="#a78bfa"/><text x="953" y="745" class="tiny">DB</text>
+        <circle cx="995" cy="742" r="5" fill="#fb923c"/><text x="1008" y="745" class="tiny">Tests</text>
+        <circle cx="795" cy="762" r="5" fill="#fb7185"/><text x="808" y="765" class="tiny">Deferred</text>
+        <circle cx="875" cy="762" r="5" fill="#fbbf24"/><text x="888" y="765" class="tiny">Runtime</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card"><h3>Implemented vertical slice</h3><ul><li>• POST text source via FastAPI</li><li>• Store Source + Chunk rows in Postgres</li><li>• Keyword search and context-pack citations</li><li>• MCP tools call same core services</li></ul></div>
+      <div class="card"><h3>Current runtime</h3><ul><li>• Docker Compose: api + postgres</li><li>• API listens on localhost:8000</li><li>• Postgres schema managed by Alembic</li><li>• Smoke test passed through Docker</li></ul></div>
+      <div class="card"><h3>Next likely work</h3><ul><li>• Source deletion + cleanup</li><li>• Real MCP stdio entrypoint</li><li>• Transcript API/MCP endpoint</li><li>• Job records/status endpoints</li></ul></div>
+    </div>
+    <div class="footer">Generated for Hermes Knowledge Vault current architecture.</div>
+  </div>
+</body>
+</html>
