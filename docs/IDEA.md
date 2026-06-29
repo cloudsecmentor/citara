@@ -111,12 +111,37 @@ Do not build these in the first version:
 * Enterprise SSO
 * Complex billing
 * Full Notion/Obsidian replacement
+* PDF/book ingestion
+* Screenshot/image ingestion
+* General web article ingestion
 * Perfect handwriting OCR
 * Universal support for every podcast platform
 * Perfect podcast timestamp URLs for every provider
 * Large-scale enterprise permission mirroring
 * Real-time collaborative editing
 * Social sharing
+
+## 4.1 Current implementation priority
+
+For the first working vertical slice, prioritize controlled text-like sources before broad document and web ingestion.
+
+Build first:
+
+* markdown/text notes
+* normalized transcript fixtures
+* podcast transcript ingestion
+* podcast URL/RSS discovery after fixture-backed transcript handling works
+* keyword search and context packs with citations over those sources
+
+Move later:
+
+* PDFs/books
+* screenshots/images/OCR
+* general web articles
+
+Reason:
+
+The first implementation should prove the source/chunk/search/citation architecture with deterministic fixtures before adding extraction-heavy sources. PDF parsing, OCR, and general web extraction introduce provider variability, flaky tests, and broader dependency choices that should not block the core ingestion design.
 
 ## 5. Primary interface strategy
 
@@ -1221,25 +1246,34 @@ Security requirements:
 ### MVP must support:
 
 1. Start with Docker Compose.
-2. Upload a PDF.
-3. Preserve the original PDF.
-4. Extract PDF text.
-5. Chunk and embed extracted text.
-6. Add a podcast episode URL.
-7. Detect episode metadata.
-8. Find transcript if available.
-9. If no transcript exists, optionally transcribe from temporary audio.
-10. Store transcript with timestamps.
+2. Add markdown/text notes.
+3. Preserve source text and metadata.
+4. Chunk and embed ingested text.
+5. Add normalized podcast transcript fixtures.
+6. Store transcript with timestamps.
+7. Add a podcast episode URL after fixture-backed transcript ingestion works.
+8. Detect episode metadata.
+9. Find transcript if available.
+10. If no transcript exists, optionally transcribe from temporary audio.
 11. Do not store podcast audio by default.
-12. Search across uploaded PDF and podcast transcript.
-13. Return citations with page numbers for PDF.
-14. Return citations with timestamps for podcast.
+12. Search across text notes and podcast transcripts.
+13. Return citations for text notes.
+14. Return citations with timestamps for podcast transcripts.
 15. Expose MCP tools for Hermes.
 16. Expose FastAPI endpoints for lightweight UI.
 17. Show sources and jobs in lightweight UI.
 18. Include `tenant_id` and `user_id` in all core tables.
 19. Support local single-user mode using `tenant_id=local`.
 20. All business logic must be in the core package, not duplicated between MCP and FastAPI.
+
+Deferred MVP+ acceptance criteria:
+
+* Upload a PDF.
+* Preserve the original PDF.
+* Extract PDF text.
+* Return citations with page numbers for PDF.
+* Ingest screenshots/images with OCR.
+* Ingest general web articles.
 
 ## 23. Suggested first implementation milestones
 
@@ -1263,14 +1297,13 @@ Security requirements:
 * search chunks
 * return citations
 
-### Milestone 3: PDF ingestion
+### Milestone 3: Context packs and citations
 
-* upload PDF
-* store original file
-* extract text by page
-* create page records
-* create chunks
-* page-level citations
+* build `retrieve_context_pack`
+* return compact chunks for Hermes
+* include citations for text notes
+* include timestamp citations for transcript segments
+* add fixture-backed tests for citation formatting
 
 ### Milestone 4: Podcast URL ingestion
 
@@ -1307,6 +1340,23 @@ Security requirements:
 * transcript viewer
 * job viewer
 * search playground
+
+### Milestone 8: PDF ingestion
+
+* upload PDF
+* store original file
+* extract text by page
+* create page records
+* create chunks
+* page-level citations
+
+### Milestone 9: Screenshots, images, and web articles
+
+* screenshot/image upload
+* OCR extraction
+* OCR-region citations where available
+* general web article extraction
+* URL/section citations for web articles
 
 ## 24. Coding rules for the agent
 
