@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -10,7 +10,7 @@ from hermes_knowledge.core.db import get_session, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack
 from hermes_knowledge.core.retrieval.keyword import search_knowledge
-from hermes_knowledge.core.sources import list_sources
+from hermes_knowledge.core.sources import delete_source, list_sources
 
 
 class TextSourceRequest(BaseModel):
@@ -56,6 +56,13 @@ def create_app() -> FastAPI:
                 for source in list_sources(session)
             ]
         }
+
+    @app.delete("/sources/{source_id}")
+    def delete_source_route(source_id: str, session: Session = Depends(get_session)) -> dict:
+        deleted = delete_source(session, source_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return {"source_id": source_id, "deleted": True}
 
     @app.get("/search")
     def search(q: str, limit: int = 10, session: Session = Depends(get_session)) -> dict:

@@ -28,7 +28,7 @@ services:
 
   mcp:
     build: .
-    command: python -m hermes_knowledge.adapters.cli.main
+    command: hermes-kv-mcp
     environment:
       DATABASE_URL: postgresql+psycopg://hermes:hermes@postgres:5432/hermes_kv
       DEFAULT_TENANT_ID: local

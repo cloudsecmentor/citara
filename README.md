@@ -38,3 +38,28 @@ docker compose up -d postgres api
 ```bash
 curl http://127.0.0.1:8000/health
 ```
+
+## MCP stdio server
+
+Hermes can launch the MCP server over stdio with:
+
+```bash
+uv run hermes-kv-mcp
+```
+
+Equivalent module form:
+
+```bash
+uv run python -m hermes_knowledge.adapters.mcp.stdio
+```
+
+Current MCP tools:
+
+```text
+ping
+add_text_source
+search_knowledge
+retrieve_context_pack
+list_sources
+delete_source
+```

@@ -6,6 +6,7 @@ from hermes_knowledge.core.db import SessionLocal, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source as core_add_text_source
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack as core_retrieve_context_pack
 from hermes_knowledge.core.retrieval.keyword import search_knowledge as core_search_knowledge
+from hermes_knowledge.core.sources import delete_source as core_delete_source
 from hermes_knowledge.core.sources import list_sources as core_list_sources
 
 try:
@@ -80,6 +81,12 @@ def create_mcp_server() -> FastMCP:
                     for source in core_list_sources(session, limit=limit)
                 ]
             }
+
+    @server.tool()
+    def delete_source(source_id: str) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            return {"source_id": source_id, "deleted": core_delete_source(session, source_id)}
 
     return server
 
