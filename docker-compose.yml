@@ -15,7 +15,7 @@ services:
 
   api:
     build: .
-    command: uvicorn hermes_knowledge.adapters.api.main:app --host 0.0.0.0 --port 8000
+    command: sh -c "alembic upgrade head && uvicorn hermes_knowledge.adapters.api.main:app --host 0.0.0.0 --port 8000"
     environment:
       DATABASE_URL: postgresql+psycopg://hermes:hermes@postgres:5432/hermes_kv
       DEFAULT_TENANT_ID: local

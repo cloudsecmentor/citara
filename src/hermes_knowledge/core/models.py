@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
