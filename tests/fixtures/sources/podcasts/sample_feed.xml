@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Podcast</title>
+    <link>https://example.com/podcast</link>
+    <description>A fixture podcast feed.</description>
+    <item>
+      <title>Ambiguity and Action</title>
+      <link>https://example.com/podcast/ambiguity-action</link>
+      <guid>ambiguity-action</guid>
+      <enclosure url="https://example.com/audio/ambiguity-action.mp3" type="audio/mpeg" length="12345" />
+    </item>
+  </channel>
+</rss>

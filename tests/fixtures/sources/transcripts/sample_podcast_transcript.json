@@ -1,0 +1,19 @@
+{
+  "show_title": "Test Podcast",
+  "episode_title": "Ambiguity and Action",
+  "episode_url": "https://example.com/podcast/ambiguity-action",
+  "segments": [
+    {
+      "start_ms": 1000,
+      "end_ms": 5000,
+      "speaker": "Host",
+      "text": "Procrastination often happens when the next action is unclear."
+    },
+    {
+      "start_ms": 5000,
+      "end_ms": 9000,
+      "speaker": "Guest",
+      "text": "A tiny two minute start can turn avoidance into motion."
+    }
+  ]
+}
