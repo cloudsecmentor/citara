@@ -143,6 +143,48 @@ Reason:
 
 The first implementation should prove the source/chunk/search/citation architecture with deterministic fixtures before adding extraction-heavy sources. PDF parsing, OCR, and general web extraction introduce provider variability, flaky tests, and broader dependency choices that should not block the core ingestion design.
 
+## 4.2 Immediate next-step sequence
+
+The next implementation work should proceed in this order:
+
+1. **Fixture corpus and ingestion contract**
+   * Add deterministic markdown/text note fixtures.
+   * Add normalized podcast transcript fixtures with timestamps.
+   * Document expected normalized source, chunk, search, and citation outputs.
+
+2. **Core text ingestion slice**
+   * Add the minimal retrieval data model needed for text notes: chunks and simple citation metadata.
+   * Implement framework-independent core services for creating text sources, chunking text, and searching chunks.
+   * Keep FastAPI and MCP as thin adapters over the same core services.
+
+3. **Keyword search and simple context packs**
+   * Implement deterministic keyword search first.
+   * Add `retrieve_context_pack` over text notes.
+   * Return compact chunks with citation labels suitable for Hermes answers.
+
+4. **Transcript fixture ingestion**
+   * Store normalized transcript segments with `start_ms`, optional `end_ms`, speaker, and text.
+   * Chunk transcript text while preserving timestamp anchors.
+   * Return timestamp-aware citations from fixture data.
+
+5. **Podcast URL/RSS discovery**
+   * Add live URL handling only after fixture-backed transcript ingestion passes.
+   * Discover RSS feeds, episode metadata, transcript URLs, and audio URLs.
+   * Continue to avoid storing podcast audio by default.
+
+6. **Podcast transcription**
+   * Add temporary audio download and transcription only after transcript discovery is working.
+   * Delete temporary audio by default.
+
+7. **Hermes-ready MCP and lightweight UI**
+   * Expose `search_knowledge`, `retrieve_context_pack`, `get_source`, job status tools, and ingestion tools.
+   * Add UI pages for source/job/search inspection.
+
+8. **Deferred extraction-heavy sources**
+   * Add PDF/book ingestion.
+   * Add screenshots/images/OCR.
+   * Add general web article extraction.
+
 ## 5. Primary interface strategy
 
 The system must expose two interfaces over the same core logic:
@@ -1288,16 +1330,24 @@ Deferred MVP+ acceptance criteria:
 * FastMCP server with one test tool
 * Docker Compose
 
-### Milestone 2: Basic source ingestion
+### Milestone 2: Fixture corpus and ingestion contract
+
+* markdown/text note fixtures
+* normalized podcast transcript fixtures with timestamps
+* expected normalized source records
+* expected chunks
+* expected search results
+* expected citation/context-pack outputs
+
+### Milestone 3: Basic text source ingestion
 
 * upload text/markdown
 * create source
 * chunk text
-* embed chunks
-* search chunks
-* return citations
+* search chunks with deterministic keyword search
+* return simple citations
 
-### Milestone 3: Context packs and citations
+### Milestone 4: Context packs and citations
 
 * build `retrieve_context_pack`
 * return compact chunks for Hermes
@@ -1305,7 +1355,15 @@ Deferred MVP+ acceptance criteria:
 * include timestamp citations for transcript segments
 * add fixture-backed tests for citation formatting
 
-### Milestone 4: Podcast URL ingestion
+### Milestone 5: Transcript fixture ingestion
+
+* store transcript segments
+* preserve `start_ms`, optional `end_ms`, speaker labels, and source URL
+* chunk transcript text while preserving timestamp anchors
+* create timestamp citations from fixture data
+* search across text notes and transcript fixtures
+
+### Milestone 6: Podcast URL ingestion
 
 * accept podcast URL
 * classify URL
@@ -1315,7 +1373,7 @@ Deferred MVP+ acceptance criteria:
 * store transcript segments
 * create timestamp citations
 
-### Milestone 5: Podcast transcription
+### Milestone 7: Podcast transcription
 
 * temporary audio fetch
 * transcribe
@@ -1323,7 +1381,7 @@ Deferred MVP+ acceptance criteria:
 * delete temporary audio by default
 * create chunks and embeddings
 
-### Milestone 6: Hermes-ready MCP
+### Milestone 8: Hermes-ready MCP
 
 * `ingest_url`
 * `ingest_podcast`
@@ -1332,7 +1390,7 @@ Deferred MVP+ acceptance criteria:
 * `get_source`
 * `get_ingestion_job_status`
 
-### Milestone 7: Lightweight UI
+### Milestone 9: Lightweight UI
 
 * add source page
 * source list
@@ -1341,7 +1399,7 @@ Deferred MVP+ acceptance criteria:
 * job viewer
 * search playground
 
-### Milestone 8: PDF ingestion
+### Milestone 10: PDF ingestion
 
 * upload PDF
 * store original file
@@ -1350,7 +1408,7 @@ Deferred MVP+ acceptance criteria:
 * create chunks
 * page-level citations
 
-### Milestone 9: Screenshots, images, and web articles
+### Milestone 11: Screenshots, images, and web articles
 
 * screenshot/image upload
 * OCR extraction
