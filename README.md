@@ -51,6 +51,42 @@ The current vector-search implementation uses deterministic local test embedding
 by default. Docker uses `pgvector/pgvector:pg16`, and Alembic enables the
 `vector` extension before creating the `embeddings` table.
 
+Verify whichever embedding provider is configured:
+
+```bash
+scripts/verify_embeddings.py "embedding smoke test"
+```
+
+Provider configuration examples:
+
+```bash
+# Offline deterministic provider, used by tests/default local dev
+export EMBEDDING_PROVIDER=local
+
+# OpenAI API provider
+export EMBEDDING_PROVIDER=openai
+export EMBEDDING_MODEL=text-embedding-3-small
+export OPENAI_API_KEY=...
+
+# Azure AI Foundry / Azure OpenAI-compatible provider
+export EMBEDDING_PROVIDER=azure_foundry
+export AZURE_OPENAI_ENDPOINT=https://<resource>.cognitiveservices.azure.com/
+export AZURE_OPENAI_DEPLOYMENT=text-embedding-3-small
+export AZURE_OPENAI_API_VERSION=2024-02-01
+export AZURE_OPENAI_API_KEY=...
+```
+
+Current DEV Azure resource created for Foundry-compatible embeddings:
+
+```text
+Subscription: DEV subscription
+Resource group: hkv-dev-rg
+Location: eastus
+Resource: hkv-dev-ai-0e5f1e5a
+Endpoint: https://hkv-dev-ai-0e5f1e5a.cognitiveservices.azure.com/
+Deployment: text-embedding-3-small
+```
+
 ## MCP stdio server
 
 Hermes can launch the MCP server over stdio with:

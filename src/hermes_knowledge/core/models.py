@@ -12,13 +12,9 @@ class EmbeddingVector(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, dimensions: int = 8) -> None:
-        super().__init__()
-        self.dimensions = dimensions
-
     def load_dialect_impl(self, dialect):  # type: ignore[no-untyped-def]
         if dialect.name == "postgresql":
-            return dialect.type_descriptor(Vector(self.dimensions))
+            return dialect.type_descriptor(Vector())
         return dialect.type_descriptor(JSON())
 
 
@@ -126,7 +122,7 @@ class Embedding(Base):
     chunk_id: Mapped[str] = mapped_column(ForeignKey("chunks.id"), nullable=False, index=True)
     embedding_model: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
-    vector: Mapped[list[float]] = mapped_column(EmbeddingVector(8), nullable=False)
+    vector: Mapped[list[float]] = mapped_column(EmbeddingVector(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 

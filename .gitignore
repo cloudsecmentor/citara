@@ -17,6 +17,7 @@ ENV/
 .env
 .env.*
 !.env.example
+.azure/
 
 # Local runtime data
 *.db

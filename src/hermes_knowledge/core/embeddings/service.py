@@ -27,7 +27,7 @@ def embed_chunks(
             source_id=chunk.source_id,
             chunk_id=chunk.id,
             embedding_model=provider.model,
-            dimensions=provider.dimensions,
+            dimensions=len(vector),
             vector=[float(value) for value in vector],
         )
         for chunk, vector in zip(chunks, vectors, strict=True)
