@@ -33,6 +33,54 @@ Docker Compose runs migrations before starting the API:
 docker compose up -d postgres api
 ```
 
+### Reset the local Docker database
+
+The Docker Postgres database is stored in the named volume:
+
+```text
+hermes-knowledge-vault_postgres_data
+```
+
+To start with a completely fresh database, delete the volume and restart the
+services:
+
+```bash
+docker compose down -v
+docker compose up -d postgres api
+```
+
+This deletes all ingested sources, transcript segments, chunks, embeddings, and
+ingestion jobs. Alembic recreates an empty schema when the API starts.
+
+Verify the reset:
+
+```bash
+docker compose exec -T postgres psql -U hermes -d hermes_kv -tAc \
+"select version_num from alembic_version; select count(*) from sources; select count(*) from transcript_segments; select count(*) from chunks; select count(*) from embeddings;"
+```
+
+Expected result after reset:
+
+```text
+20260629_0003
+0
+0
+0
+0
+```
+
+Back up before resetting:
+
+```bash
+docker compose exec -T postgres pg_dump -U hermes hermes_kv > backup.sql
+```
+
+Restore a backup:
+
+```bash
+docker compose exec -T postgres psql -U hermes -d hermes_kv < backup.sql
+```
+
 ## Docker smoke check
 
 ```bash
