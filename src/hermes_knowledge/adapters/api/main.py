@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from hermes_knowledge.core.db import get_session, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source
+from hermes_knowledge.core.ingestion.transcript import add_transcript_source
 from hermes_knowledge.core.jobs import get_ingestion_job, list_ingestion_jobs, list_ingestion_jobs_for_source, serialize_ingestion_job
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack, search_by_mode
 from hermes_knowledge.core.sources import delete_source, list_sources
@@ -17,6 +18,21 @@ class TextSourceRequest(BaseModel):
     title: str
     text: str
     collection_id: str | None = None
+
+
+class TranscriptSegmentRequest(BaseModel):
+    start_ms: int
+    end_ms: int | None = None
+    speaker: str | None = None
+    text: str
+
+
+class TranscriptSourceRequest(BaseModel):
+    show_title: str
+    episode_title: str
+    episode_url: str | None = None
+    collection_id: str | None = None
+    segments: list[TranscriptSegmentRequest]
 
 
 @asynccontextmanager
@@ -38,6 +54,16 @@ def create_app() -> FastAPI:
             session,
             title=payload.title,
             text=payload.text,
+            collection_id=payload.collection_id,
+        )
+        jobs = list_ingestion_jobs_for_source(session, source.id, limit=1)
+        return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
+
+    @app.post("/sources/transcript")
+    def add_transcript(payload: TranscriptSourceRequest, session: Session = Depends(get_session)) -> dict[str, str | None]:
+        source = add_transcript_source(
+            session,
+            payload=payload.model_dump(exclude={"collection_id"}),
             collection_id=payload.collection_id,
         )
         jobs = list_ingestion_jobs_for_source(session, source.id, limit=1)

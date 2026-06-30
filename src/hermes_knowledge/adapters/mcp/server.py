@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from hermes_knowledge.core.db import SessionLocal, init_db
 from hermes_knowledge.core.ingestion.text import add_text_source as core_add_text_source
+from hermes_knowledge.core.ingestion.transcript import add_transcript_source as core_add_transcript_source
 from hermes_knowledge.core.jobs import get_ingestion_job as core_get_ingestion_job
 from hermes_knowledge.core.jobs import list_ingestion_jobs as core_list_ingestion_jobs
 from hermes_knowledge.core.jobs import list_ingestion_jobs_for_source as core_list_ingestion_jobs_for_source
@@ -41,6 +42,14 @@ def create_mcp_server() -> FastMCP:
         init_db()
         with SessionLocal() as session:
             source = core_add_text_source(session, title=title, text=text, collection_id=collection_id)
+            jobs = core_list_ingestion_jobs_for_source(session, source.id, limit=1)
+            return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
+
+    @server.tool()
+    def add_transcript_source(payload: dict, collection_id: str | None = None) -> dict[str, str | None]:
+        init_db()
+        with SessionLocal() as session:
+            source = core_add_transcript_source(session, payload=payload, collection_id=collection_id)
             jobs = core_list_ingestion_jobs_for_source(session, source.id, limit=1)
             return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
 

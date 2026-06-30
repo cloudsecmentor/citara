@@ -58,6 +58,15 @@ curl http://127.0.0.1:8000/jobs
 curl http://127.0.0.1:8000/jobs/<job_id>
 ```
 
+Ingest real podcast RSS episodes that expose `podcast:transcript` metadata:
+
+```bash
+scripts/ingest_podcast_transcripts.py "https://pythonbytes.fm/episodes/rss" --count 2
+```
+
+This fetches transcript files, normalizes them into timestamped segments, and
+posts them to `POST /sources/transcript`.
+
 Verify whichever embedding provider is configured:
 
 ```bash

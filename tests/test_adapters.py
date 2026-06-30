@@ -47,6 +47,7 @@ def test_mcp_server_exposes_hermes_tools():
     if tool_names:
         assert {
             "add_text_source",
+            "add_transcript_source",
             "search_knowledge",
             "retrieve_context_pack",
             "list_sources",
