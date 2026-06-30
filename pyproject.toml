@@ -5,9 +5,22 @@ build-backend = "hatchling.build"
 [project]
 name = "hermes-knowledge-vault"
 version = "0.1.0"
-description = "Hermes Knowledge Vault core backend"
+description = "Local-first personal knowledge backend for notes, podcast transcripts, embeddings, and citation-backed retrieval"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Sergey Bazylko" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
+  "License :: Other/Proprietary License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Database",
+  "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",

@@ -11,7 +11,7 @@ from hermes_knowledge.core.ingestion.text import add_text_source
 from hermes_knowledge.core.ingestion.transcript import add_transcript_source
 from hermes_knowledge.core.jobs import get_ingestion_job, list_ingestion_jobs, list_ingestion_jobs_for_source, serialize_ingestion_job
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack, search_by_mode
-from hermes_knowledge.core.sources import delete_source, list_sources
+from hermes_knowledge.core.sources import delete_source, list_sources, set_source_preference
 
 
 class TextSourceRequest(BaseModel):
@@ -33,6 +33,11 @@ class TranscriptSourceRequest(BaseModel):
     episode_url: str | None = None
     collection_id: str | None = None
     segments: list[TranscriptSegmentRequest]
+
+
+class SourcePreferenceRequest(BaseModel):
+    retrieval_weight: float
+    preference_label: str | None = None
 
 
 @asynccontextmanager
@@ -101,6 +106,21 @@ def create_app() -> FastAPI:
         if not deleted:
             raise HTTPException(status_code=404, detail="Source not found")
         return {"source_id": source_id, "deleted": True}
+
+    @app.patch("/sources/{source_id}/preference")
+    def source_preference(source_id: str, payload: SourcePreferenceRequest, session: Session = Depends(get_session)) -> dict:
+        try:
+            source = set_source_preference(
+                session,
+                source_id,
+                retrieval_weight=payload.retrieval_weight,
+                preference_label=payload.preference_label,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if source is None:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return {"source_id": source.id, "metadata": source.metadata_json}
 
     @app.get("/search")
     def search(q: str, limit: int = 10, mode: str = "hybrid", session: Session = Depends(get_session)) -> dict:

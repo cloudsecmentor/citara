@@ -18,6 +18,36 @@ def list_sources(session: Session, *, tenant_id: str = settings.default_tenant_i
     )
 
 
+def get_source(session: Session, source_id: str, *, tenant_id: str = settings.default_tenant_id) -> Source | None:
+    source = session.get(Source, source_id)
+    if source is None or source.tenant_id != tenant_id:
+        return None
+    return source
+
+
+def set_source_preference(
+    session: Session,
+    source_id: str,
+    *,
+    retrieval_weight: float,
+    preference_label: str | None = None,
+    tenant_id: str = settings.default_tenant_id,
+) -> Source | None:
+    if retrieval_weight <= 0:
+        raise ValueError("retrieval_weight must be greater than 0")
+    source = get_source(session, source_id, tenant_id=tenant_id)
+    if source is None:
+        return None
+    metadata = dict(source.metadata_json or {})
+    metadata["retrieval_weight"] = retrieval_weight
+    if preference_label is not None:
+        metadata["preference_label"] = preference_label
+    source.metadata_json = metadata
+    session.commit()
+    session.refresh(source)
+    return source
+
+
 def delete_source(session: Session, source_id: str, *, tenant_id: str = settings.default_tenant_id) -> bool:
     source = session.get(Source, source_id)
     if source is None or source.tenant_id != tenant_id:

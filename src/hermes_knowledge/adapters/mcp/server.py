@@ -13,6 +13,7 @@ from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack a
 from hermes_knowledge.core.retrieval.context_pack import search_by_mode as core_search_by_mode
 from hermes_knowledge.core.sources import delete_source as core_delete_source
 from hermes_knowledge.core.sources import list_sources as core_list_sources
+from hermes_knowledge.core.sources import set_source_preference as core_set_source_preference
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -108,6 +109,18 @@ def create_mcp_server() -> FastMCP:
         with SessionLocal() as session:
             job = core_get_ingestion_job(session, job_id)
             return {"found": False, "job_id": job_id} if job is None else {"found": True, **serialize_ingestion_job(job)}
+
+    @server.tool()
+    def set_source_preference(source_id: str, retrieval_weight: float, preference_label: str | None = None) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            source = core_set_source_preference(
+                session,
+                source_id,
+                retrieval_weight=retrieval_weight,
+                preference_label=preference_label,
+            )
+            return {"found": False, "source_id": source_id} if source is None else {"found": True, "source_id": source.id, "metadata": source.metadata_json}
 
     @server.tool()
     def delete_source(source_id: str) -> dict:

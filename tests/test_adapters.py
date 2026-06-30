@@ -53,6 +53,7 @@ def test_mcp_server_exposes_hermes_tools():
             "list_sources",
             "delete_source",
             "get_ingestion_job_status",
+            "set_source_preference",
             "list_ingestion_jobs",
         }.issubset(tool_names)
     assert server is not None

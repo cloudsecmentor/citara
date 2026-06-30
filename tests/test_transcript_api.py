@@ -17,7 +17,7 @@ def test_api_ingests_transcript_fixture_and_searches_timestamp_citation(fixtures
         assert body["source_id"].startswith("src_")
         assert body["job_id"].startswith("job_")
 
-        search = client.get("/search", params={"q": "ambiguous action", "mode": "hybrid"})
+        search = client.get("/search", params={"q": "ambiguous action", "mode": "keyword", "limit": 100})
         assert search.status_code == 200
         results = search.json()["results"]
         result = next(item for item in results if item["source_id"] == body["source_id"])

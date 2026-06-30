@@ -13,7 +13,7 @@ RUN apt-get update \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY pyproject.toml uv.lock README.md alembic.ini ./
+COPY pyproject.toml uv.lock README.md LICENSE NOTICE COMMERCIAL_USE.md alembic.ini ./
 COPY alembic ./alembic
 COPY scripts ./scripts
 COPY src ./src

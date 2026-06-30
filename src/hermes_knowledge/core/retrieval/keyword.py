@@ -41,6 +41,15 @@ def _timestamp_url(source: Source, chunk: Chunk) -> str | None:
     return f"{source.canonical_url}{separator}t={chunk.start_ms // 1000}"
 
 
+def _source_weight(source: Source) -> float:
+    value = (source.metadata_json or {}).get("retrieval_weight", 1.0)
+    try:
+        weight = float(value)
+    except (TypeError, ValueError):
+        return 1.0
+    return weight if weight > 0 else 1.0
+
+
 def _format_timestamp(ms: int) -> str:
     total = ms // 1000
     hours, remainder = divmod(total, 3600)
@@ -67,12 +76,12 @@ def search_knowledge(
         .where(Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
     ).all()
 
-    scored: list[tuple[int, Source, Chunk]] = []
+    scored: list[tuple[float, Source, Chunk]] = []
     for chunk, source in rows:
         chunk_tokens = tokenize(chunk.text)
         score = sum(chunk_tokens.count(token) for token in query_tokens)
         if score:
-            scored.append((score, source, chunk))
+            scored.append((score * _source_weight(source), source, chunk))
 
     scored.sort(key=lambda item: (-item[0], item[1].title, item[2].chunk_index))
     return [
