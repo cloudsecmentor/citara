@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from hermes_knowledge.core.config import settings
 from hermes_knowledge.core.embeddings.service import embed_query
 from hermes_knowledge.core.models import Chunk, Embedding, Source
-from hermes_knowledge.core.retrieval.keyword import SearchResult, _citation_label
+from hermes_knowledge.core.retrieval.keyword import SearchResult, _citation_label, _timestamp_url
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -52,6 +52,7 @@ def vector_search(
             score=float(score),
             citation_label=_citation_label(source, chunk),
             canonical_url=source.canonical_url,
+            timestamp_url=_timestamp_url(source, chunk),
             start_ms=chunk.start_ms,
             end_ms=chunk.end_ms,
         )

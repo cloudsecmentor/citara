@@ -34,6 +34,13 @@ def _citation_label(source: Source, chunk: Chunk) -> str:
     return f"{source.title}, chunk {chunk.chunk_index}"
 
 
+def _timestamp_url(source: Source, chunk: Chunk) -> str | None:
+    if source.source_type != "podcast_episode" or not source.canonical_url or chunk.start_ms is None:
+        return None
+    separator = "&" if "?" in source.canonical_url else "?"
+    return f"{source.canonical_url}{separator}t={chunk.start_ms // 1000}"
+
+
 def _format_timestamp(ms: int) -> str:
     total = ms // 1000
     hours, remainder = divmod(total, 3600)
@@ -78,6 +85,7 @@ def search_knowledge(
             score=float(score),
             citation_label=_citation_label(source, chunk),
             canonical_url=source.canonical_url,
+            timestamp_url=_timestamp_url(source, chunk),
             start_ms=chunk.start_ms,
             end_ms=chunk.end_ms,
         )
