@@ -32,6 +32,7 @@ dependencies = [
   "mcp>=1.10",
   "psycopg[binary]>=3.2",
   "pgvector>=0.3",
+  "pymupdf>=1.28.0",
 ]
 
 [project.scripts]

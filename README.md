@@ -198,6 +198,32 @@ scripts/ingest_podcast_transcripts.py "https://pythonbytes.fm/episodes/rss" --co
 
 This fetches transcript files, normalizes them into timestamped segments, and posts them to `POST /sources/transcript`.
 
+### BibleProject import and transcription pipeline
+
+BibleProject uses a Simplecast RSS feed with official transcript PDFs for some episodes and audio-only entries for the rest:
+
+```bash
+uv run python scripts/bibleproject_pipeline.py discover
+uv run python scripts/bibleproject_pipeline.py status
+uv run python scripts/bibleproject_pipeline.py import-published
+```
+
+The pipeline is resumable. It stores state under `data/import-state/bibleproject_pipeline_state.json` and artifacts under `data/import-artifacts/bibleproject/`. Re-running a command checks state and skips episodes already imported.
+
+To sequentially transcribe missing audio locally with `faster-whisper`:
+
+```bash
+uv pip install faster-whisper
+uv run python scripts/bibleproject_pipeline.py transcribe-missing \
+  --model small \
+  --device cpu \
+  --compute-type int8
+```
+
+Stop with `Ctrl+C`; the current episode is marked interrupted/error and the next run resumes from the first unfinished episode. On a CUDA-capable VM, use options such as `--device cuda --compute-type float16`.
+
+For deployments where the API container is used but source provenance should be written directly to Postgres, provide `DATABASE_URL` to the script. It will best-effort annotate imported sources with `transcript_url`, episode GUID, duration, and transcript provenance metadata.
+
 Podcast citations include clickable timestamp links when a chunk has `start_ms` and the source has `canonical_url`:
 
 ```text
