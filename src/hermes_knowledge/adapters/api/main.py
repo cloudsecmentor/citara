@@ -12,6 +12,7 @@ from hermes_knowledge.core.ingestion.transcript import add_transcript_source
 from hermes_knowledge.core.jobs import get_ingestion_job, list_ingestion_jobs, list_ingestion_jobs_for_source, serialize_ingestion_job
 from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack, search_by_mode
 from hermes_knowledge.core.sources import delete_source, list_sources, set_source_preference
+from hermes_knowledge.core.summary import get_source_summary_context, resolve_source_for_summary, resolve_summary_context
 
 
 class TextSourceRequest(BaseModel):
@@ -99,6 +100,35 @@ def create_app() -> FastAPI:
                 for source in list_sources(session)
             ]
         }
+
+    @app.get("/sources/resolve")
+    def resolve_source(q: str, preference: str = "current", session: Session = Depends(get_session)) -> dict:
+        source = resolve_source_for_summary(session, query=q, preference=preference)
+        if source is None:
+            raise HTTPException(status_code=404, detail="Source not found")
+        metadata = source.metadata_json or {}
+        return {
+            "source_id": source.id,
+            "title": source.title,
+            "source_type": source.source_type,
+            "canonical_url": source.canonical_url,
+            "preference_label": metadata.get("preference_label"),
+            "retrieval_weight": metadata.get("retrieval_weight", 1.0),
+        }
+
+    @app.get("/sources/summary-context")
+    def resolved_summary_context(q: str, preference: str = "current", max_chunks: int | None = None, session: Session = Depends(get_session)) -> dict:
+        context = resolve_summary_context(session, query=q, preference=preference, max_chunks=max_chunks)
+        if context is None:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return context
+
+    @app.get("/sources/{source_id}/summary-context")
+    def source_summary_context(source_id: str, max_chunks: int | None = None, session: Session = Depends(get_session)) -> dict:
+        context = get_source_summary_context(session, source_id, max_chunks=max_chunks)
+        if context is None:
+            raise HTTPException(status_code=404, detail="Source not found")
+        return context
 
     @app.delete("/sources/{source_id}")
     def delete_source_route(source_id: str, session: Session = Depends(get_session)) -> dict:

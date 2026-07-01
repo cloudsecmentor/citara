@@ -14,6 +14,9 @@ from hermes_knowledge.core.retrieval.context_pack import search_by_mode as core_
 from hermes_knowledge.core.sources import delete_source as core_delete_source
 from hermes_knowledge.core.sources import list_sources as core_list_sources
 from hermes_knowledge.core.sources import set_source_preference as core_set_source_preference
+from hermes_knowledge.core.summary import get_source_summary_context as core_get_source_summary_context
+from hermes_knowledge.core.summary import resolve_source_for_summary as core_resolve_source_for_summary
+from hermes_knowledge.core.summary import resolve_summary_context as core_resolve_summary_context
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -79,6 +82,38 @@ def create_mcp_server() -> FastMCP:
         init_db()
         with SessionLocal() as session:
             return core_retrieve_context_pack(session, query=query, limit=limit, mode=mode)
+
+    @server.tool()
+    def resolve_source(query: str, preference: str = "current") -> dict:
+        init_db()
+        with SessionLocal() as session:
+            source = core_resolve_source_for_summary(session, query=query, preference=preference)
+            if source is None:
+                return {"found": False, "query": query}
+            metadata = source.metadata_json or {}
+            return {
+                "found": True,
+                "source_id": source.id,
+                "title": source.title,
+                "source_type": source.source_type,
+                "canonical_url": source.canonical_url,
+                "preference_label": metadata.get("preference_label"),
+                "retrieval_weight": metadata.get("retrieval_weight", 1.0),
+            }
+
+    @server.tool()
+    def get_source_summary_context(source_id: str, max_chunks: int | None = None) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            context = core_get_source_summary_context(session, source_id, max_chunks=max_chunks)
+            return {"found": False, "source_id": source_id} if context is None else {"found": True, **context}
+
+    @server.tool()
+    def resolve_summary_context(query: str, preference: str = "current", max_chunks: int | None = None) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            context = core_resolve_summary_context(session, query=query, preference=preference, max_chunks=max_chunks)
+            return {"found": False, "query": query} if context is None else {"found": True, **context}
 
     @server.tool()
     def list_sources(limit: int = 50) -> dict:

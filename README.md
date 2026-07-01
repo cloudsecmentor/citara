@@ -150,6 +150,35 @@ Retrieve a context pack:
 curl "http://127.0.0.1:8000/context-pack?q=feline&mode=hybrid&limit=5"
 ```
 
+## Episode/source summaries
+
+Search-oriented context packs are best for targeted questions. Whole-episode
+summaries use a different path: first resolve the episode/source, then fetch all
+chunks for that source in transcript order.
+
+Resolve a source, preferring the current version when current and legacy both
+match:
+
+```bash
+curl "http://127.0.0.1:8000/sources/resolve?q=BEMA%2010&preference=current"
+```
+
+Fetch ordered summary context by source ID:
+
+```bash
+curl "http://127.0.0.1:8000/sources/<source_id>/summary-context"
+```
+
+Or resolve and fetch summary context in one call:
+
+```bash
+curl "http://127.0.0.1:8000/sources/summary-context?q=BEMA%2010&preference=current"
+```
+
+The response contains source metadata, ordered chunks, `start_ms`/`end_ms`, and
+clickable `timestamp_url` citations. Chat clients should summarize from chunks in
+`chunk_index` order and cite key claims with the returned timestamp URLs.
+
 ## Ingestion jobs
 
 Ingestion endpoints record inline job status rows:
@@ -255,6 +284,9 @@ add_text_source
 add_transcript_source
 search_knowledge
 retrieve_context_pack
+resolve_source
+get_source_summary_context
+resolve_summary_context
 list_sources
 delete_source
 set_source_preference
