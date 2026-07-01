@@ -224,6 +224,26 @@ Stop with `Ctrl+C`; the current episode is marked interrupted/error and the next
 
 For deployments where the API container is used but source provenance should be written directly to Postgres, provide `DATABASE_URL` to the script. It will best-effort annotate imported sources with `transcript_url`, episode GUID, duration, and transcript provenance metadata.
 
+### BEMA and Text in Us transcription queues
+
+BEMA published transcripts were already imported separately. The BEMA pipeline is therefore focused on the remaining episodes that need generated transcription. It reads the BEMA RSS feed, checks the vault for any existing `BEMA <episode>:` source, and queues only episodes not already represented in the DB:
+
+```bash
+uv run python scripts/bema_pipeline.py discover
+uv run python scripts/bema_pipeline.py status
+uv run python scripts/bema_pipeline.py transcribe-missing --model small --device cpu --compute-type int8
+```
+
+Text in Us currently exposes no published transcript links in its Anchor/Spotify RSS feed, so its pipeline is transcription-first:
+
+```bash
+uv run python scripts/textinus_pipeline.py discover
+uv run python scripts/textinus_pipeline.py status
+uv run python scripts/textinus_pipeline.py transcribe-missing --model small --device cpu --compute-type int8
+```
+
+Both scripts are sequential and resumable. They store state under `data/import-state/` and artifacts under `data/import-artifacts/`. If stopped, rerun the same command and it continues from the first unfinished episode.
+
 Podcast citations include clickable timestamp links when a chunk has `start_ms` and the source has `canonical_url`:
 
 ```text
