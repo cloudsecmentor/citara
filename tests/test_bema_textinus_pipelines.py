@@ -14,6 +14,21 @@ def load_script(name: str):
     return module
 
 
+def test_specific_pipeline_defaults_use_external_hkb_roots():
+    bema = load_script("bema_pipeline")
+    textinus = load_script("textinus_pipeline")
+    bibleproject = load_script("bibleproject_pipeline")
+    repo_root = Path(__file__).resolve().parents[1]
+    hkb_root = repo_root.parent / "hkb"
+
+    assert bema.DEFAULT_ARTIFACT_DIR == hkb_root / "source-artifacts" / "bema"
+    assert bema.DEFAULT_STATE == hkb_root / "import-state" / "bema_pipeline_state.json"
+    assert textinus.DEFAULT_ARTIFACT_DIR == hkb_root / "source-artifacts" / "textinus"
+    assert textinus.DEFAULT_STATE == hkb_root / "import-state" / "textinus_pipeline_state.json"
+    assert bibleproject.DEFAULT_ARTIFACT_DIR == hkb_root / "source-artifacts" / "bibleproject"
+    assert bibleproject.DEFAULT_STATE == hkb_root / "import-state" / "bibleproject_pipeline_state.json"
+
+
 BEMA_RSS = """<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>

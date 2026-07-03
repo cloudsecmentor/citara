@@ -15,7 +15,9 @@ def _get_bool(name: str, default: bool) -> bool:
 class Settings:
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./hermes_knowledge_vault.db")
     object_store_type: str = os.getenv("OBJECT_STORE_TYPE", "local")
-    object_store_path: str = os.getenv("OBJECT_STORE_PATH", "./data/object-store")
+    object_store_path: str = os.getenv("OBJECT_STORE_PATH", "../hkb/object-store")
+    source_artifact_root: str = os.getenv("SOURCE_ARTIFACT_ROOT", "../hkb/source-artifacts")
+    source_state_root: str = os.getenv("SOURCE_STATE_ROOT", "../hkb/import-state")
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "local")
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "deterministic-hash-v1")
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "8"))

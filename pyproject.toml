@@ -9,7 +9,7 @@ description = "Local-first personal knowledge backend for notes, podcast transcr
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "Sergey Bazylko" }]
+authors = [{ name = "Hermes Knowledge Vault contributors" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",

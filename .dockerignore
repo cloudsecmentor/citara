@@ -2,6 +2,7 @@
 .venv
 __pycache__
 .pytest_cache
+.hermes
 .mypy_cache
 .ruff_cache
 .coverage
@@ -12,6 +13,9 @@ htmlcov
 *.sqlite
 *.sqlite3
 data
+status.md
+backup*.sql
+*.dump
 .env
 .env.*
 !.env.example

@@ -15,10 +15,16 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from artifact_paths import source_artifact_root, source_state_root
+
 DEFAULT_FEED_URL = "https://www.bemadiscipleship.com/rss"
 DEFAULT_API_URL = "http://127.0.0.1:8000"
-DEFAULT_STATE = Path("data/import-state/bema_pipeline_state.json")
-DEFAULT_ARTIFACT_DIR = Path("data/import-artifacts/bema")
+DEFAULT_STATE = source_state_root() / "bema_pipeline_state.json"
+DEFAULT_ARTIFACT_DIR = source_artifact_root() / "bema"
 USER_AGENT = "hermes-knowledge-vault/0.1 (+BEMA import pipeline)"
 ITUNES_NS = "http://www.itunes.com/dtds/podcast-1.0.dtd"
 CURRENT_WEIGHT = 2.0

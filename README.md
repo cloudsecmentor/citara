@@ -45,6 +45,12 @@ This project is **source-available**, not OSI open source.
 
 Users are responsible for ensuring they have the right to ingest, store, process, and use any external content. Do not redistribute third-party transcripts, audio, PDFs, or other copyrighted content unless you have permission from the content owner.
 
+## Design documents
+
+- [Ingestion contract](docs/INGESTION_CONTRACT.md)
+- [Source artifact storage design](docs/SOURCE_ARTIFACT_STORAGE.md)
+- [Original product/architecture idea](docs/IDEA.md)
+
 ## Local development
 
 Install dependencies and run tests:
@@ -92,6 +98,32 @@ docker compose up -d postgres api
 ```
 
 This deletes all ingested sources, transcript segments, chunks, embeddings, and ingestion jobs. Alembic recreates an empty schema when the API starts.
+
+For safer source-artifact and DB maintenance, preview destructive work first:
+
+```bash
+uv run python scripts/hkb_maintenance.py reset --dry-run \
+  --remove-tree python-bytes \
+  --reset-sqlite \
+  --reset-docker-db
+```
+
+Then execute only after reviewing the printed actions:
+
+```bash
+uv run python scripts/hkb_maintenance.py reset --yes \
+  --remove-tree python-bytes \
+  --reset-sqlite \
+  --reset-docker-db
+```
+
+Rebuild the external source-artifact tree and manifest from available local artifacts:
+
+```bash
+uv run python scripts/organize_source_artifacts.py
+```
+
+The organizer reads `SOURCE_ARTIFACT_ROOT` and `SOURCE_STATE_ROOT`, defaulting to the sibling `../hkb` tree.
 
 Verify the reset:
 
