@@ -16,8 +16,8 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
   - [ ] Flip to public when P0 is done: `gh repo edit cloudsecmentor/citara --visibility public`.
 - [ ] **Note:** `organization-manifest.json` was reset to empty because `scripts/organize_source_artifacts.py` rebuilds it from the repo `data/` staging dir (now empty). The manifest is an audit-only index (not used by the app/tests), and the underlying artifacts are intact. Consider adding a "rebuild manifest from the existing `source-artifacts/` tree" mode.
 - [x] **Verified no ignored artifacts published** (`.db`, `.azure/`, `.hermes/`, `citara.sources.json`, `data/` all gitignored).
-- [ ] **Add a security contact** to `SECURITY.md` (email or GitHub private security advisory link). Currently there is no way to report a vulnerability privately.
-- [ ] **Fill in real author/maintainer** in `pyproject.toml` (currently `Hermes Knowledge Vault contributors`) and add repo URLs (`[project.urls]` homepage / repository / issues).
+- [x] **Added security contact** to `SECURITY.md`: `cloudsecmentor+citara@gmail.com`.
+- [x] **Updated `pyproject.toml` package metadata** with Citara maintainer contact and `[project.urls]` homepage / repository / issues / security link.
 
 ## P1 — Repo hygiene & contributor experience
 
@@ -88,4 +88,4 @@ Rename status (applied):
 - [x] `uv.lock` regenerated (`citara v0.1.0`).
 - [x] README carries a "formerly Hermes Knowledge Vault" note; `docs/IDEA.md` has a historical-rename disclaimer.
 - [ ] Rename the GitHub repo itself (see P0).
-- [ ] `pyproject.toml`: still needs real author + `[project.urls]` (see P0).
+- [x] `pyproject.toml`: maintainer/security contact + `[project.urls]` added.

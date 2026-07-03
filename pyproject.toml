@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Citara contributors" }]
+maintainers = [{ name = "CloudSecMentor", email = "cloudsecmentor+citara@gmail.com" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -34,6 +35,12 @@ dependencies = [
   "pgvector>=0.3",
   "pymupdf>=1.28.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cloudsecmentor/citara"
+Repository = "https://github.com/cloudsecmentor/citara"
+Issues = "https://github.com/cloudsecmentor/citara/issues"
+Security = "mailto:cloudsecmentor+citara@gmail.com"
 
 [project.scripts]
 citara-mcp = "citara.adapters.mcp.stdio:main"

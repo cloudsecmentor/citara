@@ -6,7 +6,7 @@ This project is currently an early personal-use alpha. Security fixes are handle
 
 ## Reporting vulnerabilities
 
-Please report security issues privately to the maintainer instead of opening a public issue. Include:
+Please report security issues privately to cloudsecmentor+citara@gmail.com instead of opening a public issue. Include:
 
 - affected version or commit;
 - reproduction steps;
