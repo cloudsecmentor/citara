@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Citara — Competitive Landscape</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+    :root {
+      --bg:#020617; --panel:#0f172a; --text:#e2e8f0; --muted:#94a3b8;
+      --border:#1e293b; --accent:#34d399; --warn:#fbbf24; --link:#38bdf8;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'JetBrains Mono', monospace; line-height:1.6; }
+    .wrap { max-width:1100px; margin:0 auto; padding:32px 24px 48px; }
+    .header { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+    .pulse { width:11px; height:11px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 rgba(52,211,153,.7); animation:pulse 1.8s infinite; }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,.7)} 70%{box-shadow:0 0 0 10px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+    h1 { font-size:24px; margin:0; }
+    h2 { font-size:16px; margin:32px 0 12px; color:var(--accent); }
+    h3 { font-size:13px; margin:20px 0 8px; color:#cbd5e1; }
+    p, li { font-size:12px; color:#cbd5e1; }
+    .subtitle { color:var(--muted); font-size:13px; margin:0 0 24px 23px; }
+    a { color:var(--link); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .nav { margin:0 0 24px 23px; font-size:11px; color:var(--muted); }
+    .nav a { margin-right:12px; }
+    .verdict { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin:24px 0; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+    .card h3 { margin-top:0; }
+    .card.yes { border-color:rgba(52,211,153,.35); }
+    .card.no { border-color:rgba(251,191,36,.35); }
+    .tag { display:inline-block; font-size:10px; padding:2px 8px; border-radius:999px; margin-right:6px; margin-bottom:4px; }
+    .tag-yes { background:rgba(52,211,153,.15); color:#6ee7b7; }
+    .tag-no { background:rgba(251,191,36,.15); color:#fcd34d; }
+    .tag-partial { background:rgba(56,189,248,.15); color:#7dd3fc; }
+    table { width:100%; border-collapse:collapse; font-size:11px; margin:12px 0 20px; }
+    th, td { border:1px solid var(--border); padding:10px 12px; text-align:left; vertical-align:top; }
+    th { background:#111827; color:#e2e8f0; font-weight:600; }
+    td { color:#cbd5e1; }
+    tr:nth-child(even) td { background:rgba(15,23,42,.5); }
+    .citara-col { background:rgba(6,78,59,.25) !important; }
+    .quote { border-left:3px solid var(--accent); padding:12px 16px; margin:20px 0; background:rgba(6,78,59,.15); border-radius:0 8px 8px 0; font-size:12px; color:#d1fae5; }
+    .diff-list { list-style:none; padding:0; margin:0; }
+    .diff-list li { padding:8px 0; border-bottom:1px solid var(--border); }
+    .diff-list li:last-child { border-bottom:none; }
+    .diff-list strong { color:#e2e8f0; }
+    .roadmap { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .roadmap .card { padding:14px; }
+    .footer { margin-top:32px; color:#64748b; font-size:11px; text-align:center; }
+    @media (max-width:800px) {
+      .verdict, .roadmap { grid-template-columns:1fr; }
+      table { font-size:10px; }
+      th, td { padding:8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><div class="pulse"></div><h1>Citara — Competitive Landscape</h1></div>
+    <p class="subtitle">How Citara compares to similar local-first, MCP-native knowledge backends and podcast RAG tools. Last updated July 2026.</p>
+    <p class="nav">
+      <a href="current-architecture.html">← Architecture</a>
+      <a href="../README.md">README</a>
+      <a href="SOURCE_ARTIFACT_STORAGE.md">Artifact storage</a>
+    </p>
+
+    <div class="verdict">
+      <div class="card no">
+        <h3>Not unique at category level</h3>
+        <p>
+          <span class="tag tag-no">MCP knowledge backend</span>
+          <span class="tag tag-no">Citation-backed RAG</span>
+          <span class="tag tag-no">Podcast transcript search</span>
+        </p>
+        <p>The space is crowded. Many projects claim “local-first agent memory with citations.”</p>
+      </div>
+      <div class="card yes">
+        <h3>Distinctive combination</h3>
+        <p>
+          <span class="tag tag-partial">Backend-first</span>
+          <span class="tag tag-partial">Artifact tree</span>
+          <span class="tag tag-partial">Podcast connectors</span>
+          <span class="tag tag-partial">Context packs</span>
+        </p>
+        <p>Few projects combine structured ingestion, external artifact storage, rebuildable DB, and agent-facing citation packs — especially for podcasts.</p>
+      </div>
+    </div>
+
+    <div class="quote">
+      <strong>Recommended positioning:</strong> Citara is a local-first, citation-backed
+      <em>ingestion and retrieval backend</em> for personal research — especially podcasts and transcripts —
+      that any MCP agent can query. Unlike Markdown wikis, it preserves source artifacts and rebuildable indexes.
+      Unlike chat-memory tools, provenance stays inspectable.
+    </div>
+
+    <h2>1. MCP-native personal knowledge / agent memory</h2>
+    <p>Closest peers in positioning. All expose MCP tools; most are Markdown- or vault-centric.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Overlap with Citara</th>
+          <th>Key difference</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://github.com/basicmachines-co/basic-memory">Basic Memory</a></td>
+          <td>Local-first, MCP, semantic search, citations, agent-agnostic</td>
+          <td><strong>Markdown-first</strong> knowledge graph; Citara is <strong>DB + artifact store</strong></td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/zsc-glitch/knowledge-keeper-mcp">Knowledge Keeper MCP</a></td>
+          <td>MCP, hybrid search, local-first, SHA256 audit trail</td>
+          <td>Markdown vault, Obsidian-centric, 30 generic memory tools</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/zycaskevin/Vault-for-LLM">Vault-for-LLM</a></td>
+          <td>SQLite vault, MCP, citation-backed answers, bounded reads</td>
+          <td>Project/decision memory; less podcast ingestion pipeline</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/oomkapwn/enquire-mcp">enquire-mcp</a></td>
+          <td>Obsidian + MCP, hybrid BM25+vector+rerank, GraphRAG-light</td>
+          <td>Existing notes vault; not a full ingestion backend</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/Mnemo-mcp/Mnemo">Mnemo-mcp / Mnemo</a></td>
+          <td>MCP, hybrid search, local-first, multi-agent</td>
+          <td><strong>Session/coding cognition</strong> memory, not source-faithful corpus</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/Joshwani/mneme">Joshwani/mneme</a></td>
+          <td>MCP, SQLite, local-first search</td>
+          <td>API/callable catalog + scratch notes — same category, different scope</td>
+        </tr>
+        <tr class="citara-col">
+          <td><strong>Citara</strong></td>
+          <td>All of the above at a high level</td>
+          <td>Structured backend, external artifact tree, podcast connectors, context packs, source preference weights</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. LLM-maintained wiki pattern</h2>
+    <p>Different architecture, same user goal: ask questions over personal material with citations.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Approach</th>
+          <th>vs Citara</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Karpathy LLM Wiki</a></td>
+          <td>Agent compiles raw sources into interlinked markdown wiki</td>
+          <td>Compiled markdown is canonical; Citara keeps structured DB + artifacts</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/manan0308/knowledge-base">manan0308/knowledge-base</a></td>
+          <td><code>raw/</code> → agent-maintained Obsidian <code>wiki/</code> with attribution</td>
+          <td>Wiki grows in-repo; Citara separates code repo from corpus</td>
+        </tr>
+        <tr>
+          <td><a href="https://mono.software/2026/04/22/LLM-Wiki-Personal-Knowledge-Management/">Mono LLM Wiki writeup</a></td>
+          <td>Same compiled-wiki pattern, growing ecosystem</td>
+          <td>Optimizes synthesis layer; Citara optimizes ingestion + rebuildable index</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Podcast-specific RAG with citations</h2>
+    <p>Direct functional overlap for transcript ingestion, search, and timestamped answers.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Overlap</th>
+          <th>Difference from Citara</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://github.com/tmseidel/podcast-indexer">podcast-indexer</a></td>
+          <td>RSS → Whisper → pgvector → Q&amp;A with timestamp citations</td>
+          <td>Full web UI + job queue; less artifact/provenance modeling</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/bradleesand/query-my-pod">query-my-pod</a></td>
+          <td>Whisper, chunking, vector search, RAG with citations</td>
+          <td>Rails app; personal podcast library focus</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/aranajhonny/omnipod">OmniPod</a></td>
+          <td>Grounded answers with transcript citations</td>
+          <td>Single-corpus (Lex Fridman); adds groundedness verification layer</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/spokenmd/spoken">spoken.md</a></td>
+          <td>Transcript API for agents / RAG pipelines</td>
+          <td><strong>Hosted API service</strong>, not a self-hosted vault</td>
+        </tr>
+        <tr class="citara-col">
+          <td><strong>Citara</strong></td>
+          <td>Podcast RSS, transcript normalization, hybrid search, citations</td>
+          <td>Config-driven connectors, resumable pipelines, source version weights (e.g. BEMA current vs legacy), external artifact schemas</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Where Citara is actually different</h2>
+    <p>No single project found that does <em>all</em> of the following together:</p>
+    <ul class="diff-list">
+      <li><strong>Backend-first, not Markdown-first.</strong> Peers treat Markdown/Obsidian as canonical truth. Citara uses a structured DB plus an external artifact tree; chunks and embeddings are derived and rebuildable.</li>
+      <li><strong>Source fidelity as first-class design.</strong> Uploaded originals preserved; external links store URL + extracted text + timestamps; optional temp media. Normalized transcript schemas (<code>citara.transcript.normalized.v1</code>), import payloads, pipeline state.</li>
+      <li><strong>Podcast connector architecture.</strong> Config-driven connectors (<code>citara.sources.json</code>), resumable pipeline state, source-specific behavior, and <strong>retrieval preference weights</strong> (prefer current episode over legacy version).</li>
+      <li><strong>Context packs, not just search.</strong> <code>retrieve_context_pack</code> returns compact, citation-labeled evidence for agent answers — including clickable timestamp URLs — not just a list of hits.</li>
+      <li><strong>Code repo vs corpus separation.</strong> Sibling <code>../citara/</code> for DB, artifacts, and import state (outside git). Documented as a rebuildable ingestion contract, not an afterthought.</li>
+    </ul>
+
+    <h2>5. Feature matrix (high level)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Citara</th>
+          <th>Basic Memory</th>
+          <th>Vault-for-LLM</th>
+          <th>podcast-indexer</th>
+          <th>LLM Wiki</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MCP tools</td>
+          <td class="citara-col">✓</td>
+          <td>✓</td>
+          <td>✓</td>
+          <td>—</td>
+          <td>via search tools</td>
+        </tr>
+        <tr>
+          <td>Canonical storage</td>
+          <td class="citara-col">DB + artifacts</td>
+          <td>Markdown</td>
+          <td>SQLite + Markdown</td>
+          <td>Postgres</td>
+          <td>Markdown wiki</td>
+        </tr>
+        <tr>
+          <td>Citation-backed retrieval</td>
+          <td class="citara-col">✓ context packs</td>
+          <td>✓</td>
+          <td>✓</td>
+          <td>✓</td>
+          <td>✓ in wiki pages</td>
+        </tr>
+        <tr>
+          <td>Podcast RSS ingestion</td>
+          <td class="citara-col">✓ connectors</td>
+          <td>—</td>
+          <td>—</td>
+          <td>✓</td>
+          <td>manual/agent</td>
+        </tr>
+        <tr>
+          <td>Timestamp URL citations</td>
+          <td class="citara-col">✓</td>
+          <td>—</td>
+          <td>—</td>
+          <td>✓</td>
+          <td>manual</td>
+        </tr>
+        <tr>
+          <td>Rebuild DB from artifacts</td>
+          <td class="citara-col">✓ (design goal)</td>
+          <td>N/A</td>
+          <td>partial</td>
+          <td>partial</td>
+          <td>N/A</td>
+        </tr>
+        <tr>
+          <td>Hybrid vector + keyword</td>
+          <td class="citara-col">✓</td>
+          <td>✓</td>
+          <td>evolving</td>
+          <td>✓</td>
+          <td>optional (qmd)</td>
+        </tr>
+        <tr>
+          <td>Raw audio transcription</td>
+          <td class="citara-col">connectors only</td>
+          <td>—</td>
+          <td>—</td>
+          <td>✓ Whisper</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Reranking / groundedness check</td>
+          <td class="citara-col">planned</td>
+          <td>✓</td>
+          <td>partial</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6. What would sharpen differentiation</h2>
+    <div class="roadmap">
+      <div class="card">
+        <h3>Rebuild manifest from artifacts</h3>
+        <p>Make the external artifact-tree design tangible — re-index without re-transcribing.</p>
+      </div>
+      <div class="card">
+        <h3>Raw audio transcription in core</h3>
+        <p><a href="https://github.com/tmseidel/podcast-indexer">podcast-indexer</a> already ships Whisper in the main pipeline; Citara still routes this through connectors.</p>
+      </div>
+      <div class="card">
+        <h3>Reranking + groundedness</h3>
+        <p><a href="https://github.com/aranajhonny/omnipod">OmniPod</a> verifies answers; <a href="https://github.com/oomkapwn/enquire-mcp">enquire-mcp</a> ships BGE rerank.</p>
+      </div>
+      <div class="card">
+        <h3>5-minute public demo</h3>
+        <p>RSS ingest → ask question → timestamp citation. Many repos claim this; few make it frictionless.</p>
+      </div>
+    </div>
+
+    <h2>7. Bottom line</h2>
+    <div class="card yes">
+      <p><strong>Citara is a credible, differentiated combination — not a greenfield invention.</strong></p>
+      <p>Strongest claim: <em>source-faithful podcast/transcript ingestion + agent-facing citation packs</em>.</p>
+      <p>Weakest claim: <em>“the only MCP knowledge vault”</em> or <em>“unique agent memory.”</em></p>
+    </div>
+
+    <div class="footer">
+      <a href="current-architecture.html">Architecture diagram</a> ·
+      <a href="SOURCE_ARTIFACT_STORAGE.md">Artifact storage design</a> ·
+      Citara competitive landscape
+    </div>
+  </div>
+</body>
+</html>

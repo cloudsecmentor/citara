@@ -10,13 +10,12 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 - [x] **Finish the in-flight refactor.** Connector migration committed (`4fdbf17`); working tree clean.
 - [x] **Rebrand to `Citara`** (agent-agnostic). Package, imports, console script, docker/compose/env/alembic, and docs renamed; `uv.lock` regenerated. `uv run pytest -q` (61 passing) and `uv run alembic upgrade head` (fresh DB) both green.
-- [ ] **Migrate your real local corpus** to the new default paths (your data currently lives in the sibling `../hkb/`):
-  - [ ] `mv ../hkb ../citara`
-  - [ ] `mv ../citara/hermes_knowledge_vault.db ../citara/citara.db`
-  - [ ] Re-run `uv run python scripts/organize_source_artifacts.py` to refresh `organization-manifest.json` (its `citara_root` still points at the old path).
-  - [ ] Alternatively, keep `../hkb` and set `DATABASE_URL`/`SOURCE_ARTIFACT_ROOT`/`SOURCE_STATE_ROOT` in a local `.env` to point there.
-- [ ] **Verify no ignored artifacts get published.** Run `git status --ignored` and confirm `*.db`, `.azure/`, `.hermes/`, `citara.sources.json`, and `data/` are NOT staged.
-- [ ] **Rename the GitHub repo** `hermes-knowledge-vault` → `citara` (and update any local remotes).
+- [x] **Migrated the local corpus** to `../citara/` (`citara.db`, `source-artifacts/`, `import-state/`); `../hkb` removed. No `.env`, so defaults resolve correctly.
+- [x] **Renamed** local `hkb.sources.json` → `citara.sources.json` (still gitignored).
+- [x] **Published to GitHub**: pushed to `cloudsecmentor/citara` (currently **private**). Local folder stays `hermes-knowledge-vault` because `../citara` is the data dir (can't be both).
+  - [ ] Flip to public when P0 is done: `gh repo edit cloudsecmentor/citara --visibility public`.
+- [ ] **Note:** `organization-manifest.json` was reset to empty because `scripts/organize_source_artifacts.py` rebuilds it from the repo `data/` staging dir (now empty). The manifest is an audit-only index (not used by the app/tests), and the underlying artifacts are intact. Consider adding a "rebuild manifest from the existing `source-artifacts/` tree" mode.
+- [x] **Verified no ignored artifacts published** (`.db`, `.azure/`, `.hermes/`, `citara.sources.json`, `data/` all gitignored).
 - [ ] **Add a security contact** to `SECURITY.md` (email or GitHub private security advisory link). Currently there is no way to report a vulnerability privately.
 - [ ] **Fill in real author/maintainer** in `pyproject.toml` (currently `Hermes Knowledge Vault contributors`) and add repo URLs (`[project.urls]` homepage / repository / issues).
 

@@ -52,6 +52,8 @@ Users are responsible for ensuring they have the right to ingest, store, process
 - [Ingestion contract](docs/INGESTION_CONTRACT.md)
 - [Source artifact storage design](docs/SOURCE_ARTIFACT_STORAGE.md)
 - [Original product/architecture idea](docs/IDEA.md)
+- [Current architecture diagram](docs/current-architecture.html)
+- [Competitive landscape](docs/comparison.html)
 
 ## Local development
 
