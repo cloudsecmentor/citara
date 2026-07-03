@@ -15,13 +15,11 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Callable
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-from artifact_paths import source_artifact_root, source_state_root
+from hermes_knowledge.core.config import settings
+from hermes_knowledge.core.paths import source_artifact_root, source_state_root
 
 DEFAULT_API_URL = "http://127.0.0.1:8000"
+DEFAULT_CONFIG_PATH = Path("hkb.sources.json")
 USER_AGENT = "hermes-knowledge-vault/0.1 (+generic podcast import pipeline)"
 ITUNES_NS = "http://www.itunes.com/dtds/podcast-1.0.dtd"
 PODCAST_NS = "https://podcastindex.org/namespace/1.0"
@@ -183,6 +181,25 @@ def parse_rss_items(rss_text: str, *, feed_url: str | None = None) -> tuple[str,
     return show_title, episodes
 
 
+def load_connector_module(connector: str) -> Any:
+    module_name = f"hermes_knowledge.connectors.podcasts.{connector}"
+    try:
+        return __import__(module_name, fromlist=[connector])
+    except ImportError as exc:
+        raise RuntimeError(f"Unknown podcast source connector {connector!r}") from exc
+
+
+def parse_source_rss_items(config: dict[str, Any], rss_text: str, *, feed_url: str | None = None) -> tuple[str, list[dict[str, Any]]]:
+    connector = (config.get("connector") or "generic").strip().lower()
+    if connector in {"", "generic", "generic_rss", "podcast"}:
+        return parse_rss_items(rss_text, feed_url=feed_url)
+    module = load_connector_module(connector)
+    parser = getattr(module, "parse_rss_items", None)
+    if parser is None:
+        raise RuntimeError(f"Podcast source connector {connector!r} does not expose parse_rss_items")
+    return parser(rss_text)
+
+
 def resolve_input_url(url: str, *, fetch_text_fn: Callable[[str, int], str] = fetch_text) -> dict[str, Any]:
     parsed = urllib.parse.urlparse(url)
     host = parsed.netloc.lower()
@@ -234,13 +251,35 @@ def fetch_apple_episode_metadata(collection_id: str, episode_adam_id: str) -> di
     return None
 
 
-def load_config_or_url(value: str) -> dict[str, Any]:
+def load_source_config(path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
+    if not path.exists():
+        return {"sources": []}
+    data = json.loads(path.read_text())
+    if not isinstance(data, dict) or not isinstance(data.get("sources"), list):
+        raise RuntimeError(f"Source config {path} must be an object with a sources array")
+    return data
+
+
+def source_config_by_name(name: str, *, config_path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any] | None:
+    for source in load_source_config(config_path).get("sources", []):
+        if not isinstance(source, dict):
+            continue
+        if source.get("name") == name or source.get("slug") == name:
+            return dict(source)
+    return None
+
+
+def load_config_or_url(value: str, *, config_path: Path = DEFAULT_CONFIG_PATH) -> dict[str, Any]:
     path = Path(value)
     if path.exists():
         data = json.loads(path.read_text())
         if "feed_url" not in data and "url" not in data:
             raise RuntimeError(f"Config {path} must contain feed_url or url")
         return data
+    if source := source_config_by_name(value, config_path=config_path):
+        if "feed_url" not in source and "url" not in source:
+            raise RuntimeError(f"Source {value!r} in {config_path} must contain feed_url or url")
+        return source
     return {"url": value}
 
 
@@ -352,7 +391,7 @@ def patch_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def existing_source_id(title: str, canonical_url: str | None = None) -> str | None:
-    database_url = os.getenv("DATABASE_URL", "postgresql+psycopg://hermes:hermes@127.0.0.1:5432/hermes_kv")
+    database_url = os.getenv("DATABASE_URL", settings.database_url)
     try:
         from sqlalchemy import create_engine, or_, select
         from sqlalchemy.orm import sessionmaker
@@ -374,7 +413,7 @@ def existing_source_id(title: str, canonical_url: str | None = None) -> str | No
 
 
 def annotate_source_metadata(source_id: str, metadata: dict[str, Any]) -> None:
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("DATABASE_URL", settings.database_url)
     if not database_url:
         return
     try:
@@ -396,12 +435,12 @@ def annotate_source_metadata(source_id: str, metadata: dict[str, Any]) -> None:
         session.commit()
 
 
-def discover(input_value: str, *, base_dir: Path = Path(".")) -> tuple[dict[str, Any], list[dict[str, Any]], Path, Path]:
-    config = load_config_or_url(input_value)
+def discover(input_value: str, *, base_dir: Path = Path("."), config_path: Path = DEFAULT_CONFIG_PATH) -> tuple[dict[str, Any], list[dict[str, Any]], Path, Path]:
+    config = load_config_or_url(input_value, config_path=config_path)
     resolved = resolve_input_url(config.get("feed_url") or config.get("url")) if config.get("url") else {"feed_url": config["feed_url"], "input_kind": "rss_feed"}
     feed_url = resolved["feed_url"]
     rss_text = fetch_text(feed_url, timeout=120)
-    show_title, episodes = parse_rss_items(rss_text, feed_url=feed_url)
+    show_title, episodes = parse_source_rss_items(config, rss_text, feed_url=feed_url)
     apple_episode_meta = None
     if resolved.get("collection_id") and resolved.get("episode_adam_id"):
         apple_episode_meta = fetch_apple_episode_metadata(str(resolved["collection_id"]), str(resolved["episode_adam_id"]))
@@ -483,8 +522,15 @@ def transcribe_with_faster_whisper(audio_path: Path, model: str, device: str, co
     return "\n".join(parts), segments
 
 
-def import_published(input_value: str, *, api_url: str = DEFAULT_API_URL, limit: int | None = None, base_dir: Path = Path(".")) -> list[dict[str, Any]]:
-    state, episodes, state_path, artifact_dir = discover(input_value, base_dir=base_dir)
+def import_published(
+    input_value: str,
+    *,
+    api_url: str = DEFAULT_API_URL,
+    limit: int | None = None,
+    base_dir: Path = Path("."),
+    config_path: Path = DEFAULT_CONFIG_PATH,
+) -> list[dict[str, Any]]:
+    state, episodes, state_path, artifact_dir = discover(input_value, base_dir=base_dir, config_path=config_path)
     results: list[dict[str, Any]] = []
     processed = 0
     for episode in episodes:
@@ -557,8 +603,9 @@ def transcribe_missing(
     limit: int | None = None,
     base_dir: Path = Path("."),
     keep_audio: bool = False,
+    config_path: Path = DEFAULT_CONFIG_PATH,
 ) -> list[dict[str, Any]]:
-    state, episodes, state_path, artifact_dir = discover(input_value, base_dir=base_dir)
+    state, episodes, state_path, artifact_dir = discover(input_value, base_dir=base_dir, config_path=config_path)
     results: list[dict[str, Any]] = []
     processed = 0
     for episode in episodes:
@@ -635,11 +682,11 @@ def update_episode_state(state_path: Path, episode: dict[str, Any], **updates: A
     save_state(state_path, state)
 
 
-def print_status(input_value: str, *, base_dir: Path = Path("."), refresh: bool = False) -> None:
+def print_status(input_value: str, *, base_dir: Path = Path("."), refresh: bool = False, config_path: Path = DEFAULT_CONFIG_PATH) -> None:
     if refresh:
-        state, _, state_path, _ = discover(input_value, base_dir=base_dir)
+        state, _, state_path, _ = discover(input_value, base_dir=base_dir, config_path=config_path)
     else:
-        config = load_config_or_url(input_value)
+        config = load_config_or_url(input_value, config_path=config_path)
         if config.get("slug"):
             state_path = paths_for_slug(config["slug"], base_dir=base_dir)["state"]
         else:
@@ -647,7 +694,7 @@ def print_status(input_value: str, *, base_dir: Path = Path("."), refresh: bool 
             show_title = config.get("show_title") or resolved.get("show_title") or Path(resolved["feed_url"]).stem
             state_path = paths_for_slug(config.get("slug") or show_title, base_dir=base_dir)["state"]
             if not state_path.exists():
-                state, _, state_path, _ = discover(input_value, base_dir=base_dir)
+                state, _, state_path, _ = discover(input_value, base_dir=base_dir, config_path=config_path)
         state = load_state(state_path)
     entries = state.get("episodes", {})
     summary = {
@@ -666,17 +713,63 @@ def print_status(input_value: str, *, base_dir: Path = Path("."), refresh: bool 
     print(json.dumps(summary, indent=2, sort_keys=True))
 
 
+def connector_paths(config: dict[str, Any], *, base_dir: Path = Path(".")) -> tuple[Path, Path]:
+    paths = paths_for_slug(config.get("slug") or config.get("name") or config.get("show_title") or "podcast", base_dir=base_dir)
+    return paths["state"], paths["artifact_dir"]
+
+
+def run_configured_connector_command(args: argparse.Namespace, config: dict[str, Any], *, base_dir: Path) -> bool:
+    connector = (config.get("connector") or "generic").strip().lower()
+    if connector in {"", "generic", "generic_rss", "podcast"}:
+        return False
+
+    module = load_connector_module(connector)
+    feed_url = config.get("feed_url") or config.get("url")
+    if not feed_url:
+        raise RuntimeError(f"Configured source {config.get('name') or args.input!r} must contain feed_url or url")
+    state_path, artifact_dir = connector_paths(config, base_dir=base_dir)
+
+    if connector == "bema":
+        show_title, episodes = module.discover(feed_url, state_path, artifact_dir)
+    else:
+        show_title, episodes = module.discover(feed_url, state_path)
+
+    if args.command == "discover":
+        print(json.dumps({"show_title": show_title, "episodes": len(episodes), "state_path": str(state_path), "artifact_dir": str(artifact_dir), "connector": connector}, indent=2))
+        return True
+    if args.command == "status":
+        module.print_status(state_path, episodes)
+        return True
+    if args.command in {"import-published", "run"}:
+        if not hasattr(module, "import_published"):
+            raise RuntimeError(f"Connector {connector!r} does not support import-published")
+        results = module.import_published(episodes, state_path, artifact_dir, args.api_url, args.limit)
+        print(json.dumps({"imported_this_run": len(results), "results": results[:5]}, indent=2))
+        return True
+    if args.command == "transcribe-missing":
+        if not hasattr(module, "transcribe_missing"):
+            raise RuntimeError(f"Connector {connector!r} does not support transcribe-missing")
+        results = module.transcribe_missing(episodes, state_path, artifact_dir, args.api_url, args.model, args.device, args.compute_type, args.limit)
+        print(json.dumps({"transcribed_this_run": len(results), "results": results[:5]}, indent=2))
+        return True
+    return False
+
+
 def run_command(args: argparse.Namespace) -> int:
     base_dir = Path(args.base_dir)
+    config_path = Path(args.config)
+    config = load_config_or_url(args.input, config_path=config_path)
+    if run_configured_connector_command(args, config, base_dir=base_dir):
+        return 0
     if args.command == "discover":
-        state, _, state_path, artifact_dir = discover(args.input, base_dir=base_dir)
+        state, _, state_path, artifact_dir = discover(args.input, base_dir=base_dir, config_path=config_path)
         print(json.dumps({"show_title": state.get("show_title"), "episodes": state.get("episode_count"), "published_transcript_count": state.get("published_transcript_count"), "state_path": str(state_path), "artifact_dir": str(artifact_dir)}, indent=2))
         return 0
     if args.command == "status":
-        print_status(args.input, base_dir=base_dir, refresh=args.refresh)
+        print_status(args.input, base_dir=base_dir, refresh=args.refresh, config_path=config_path)
         return 0
     if args.command in {"import-published", "run"}:
-        results = import_published(args.input, api_url=args.api_url, limit=args.limit, base_dir=base_dir)
+        results = import_published(args.input, api_url=args.api_url, limit=args.limit, base_dir=base_dir, config_path=config_path)
         print(json.dumps({"imported_or_skipped": len(results), "results": results}, indent=2))
         return 0
     if args.command == "transcribe-missing":
@@ -689,6 +782,7 @@ def run_command(args: argparse.Namespace) -> int:
             limit=args.limit,
             base_dir=base_dir,
             keep_audio=args.keep_audio,
+            config_path=config_path,
         )
         print(json.dumps({"transcribed_or_skipped": len(results), "results": results}, indent=2))
         return 0
@@ -698,10 +792,11 @@ def run_command(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generic resumable podcast transcript pipeline for HKB")
     parser.add_argument("--base-dir", default=".", help="Project/base directory for data paths")
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Source config file, usually hkb.sources.json")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ["discover", "status", "import-published", "run", "transcribe-missing"]:
         p = sub.add_parser(name)
-        p.add_argument("input", help="RSS/Apple podcast URL or JSON config path")
+        p.add_argument("input", help="Source name from config, RSS/Apple podcast URL, or JSON source config path")
         if name in {"import-published", "run", "transcribe-missing"}:
             p.add_argument("--api-url", default=DEFAULT_API_URL)
             p.add_argument("--limit", type=int)

@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import time
 import urllib.parse
 import urllib.request
@@ -16,11 +15,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-from artifact_paths import source_artifact_root, source_state_root
+from hermes_knowledge.core.config import settings
+from hermes_knowledge.core.paths import source_artifact_root, source_state_root
 
 DEFAULT_FEED_URL = "https://feeds.simplecast.com/3NVmUWZO"
 DEFAULT_API_URL = "http://127.0.0.1:8000"
@@ -325,7 +321,7 @@ def annotate_source_metadata(source_id: str, metadata: dict[str, Any]) -> None:
     When DATABASE_URL is available, this preserves transcript provenance for
     import artifacts without blocking API-only use.
     """
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("DATABASE_URL", settings.database_url)
     if not database_url:
         return
     try:

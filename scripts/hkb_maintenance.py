@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     reset.add_argument("--yes", action="store_true", help="Required for destructive non-dry-run actions")
     reset.add_argument("--remove-tree", action="append", default=[], help="Remove one source tree under SOURCE_ARTIFACT_ROOT")
     reset.add_argument("--rebuild-artifacts", action="store_true", help="Remove the whole source artifact root")
-    reset.add_argument("--reset-sqlite", action="store_true", help="Remove repo-local hermes_knowledge_vault.db")
+    reset.add_argument("--reset-sqlite", action="store_true", help="Remove sibling ../hkb/hermes_knowledge_vault.db")
     reset.add_argument("--reset-docker-db", action="store_true", help="Run docker compose down -v to drop Docker Postgres volume")
     return parser
 
@@ -36,7 +36,7 @@ def planned_actions(args: argparse.Namespace, *, repo: Path, artifact_root: Path
     if args.rebuild_artifacts:
         actions.append(("remove_artifact_root", artifact_root))
     if args.reset_sqlite:
-        actions.append(("remove_sqlite", repo / "hermes_knowledge_vault.db"))
+        actions.append(("remove_sqlite", repo.parent / "hkb" / "hermes_knowledge_vault.db"))
     if args.reset_docker_db:
         actions.append(("docker", "docker compose down -v"))
     return actions

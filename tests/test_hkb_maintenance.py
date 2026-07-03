@@ -17,8 +17,9 @@ def test_reset_dry_run_reports_actions_without_deleting(tmp_path, capsys):
     python_tree = artifact_root / "python-bytes"
     python_tree.mkdir(parents=True)
     (python_tree / "source-tree.json").write_text("{}")
-    sqlite = repo / "hermes_knowledge_vault.db"
+    sqlite = repo.parent / "hkb" / "hermes_knowledge_vault.db"
     repo.mkdir()
+    sqlite.parent.mkdir(parents=True, exist_ok=True)
     sqlite.write_text("db")
 
     code = hkb_maintenance.main(
@@ -70,7 +71,8 @@ def test_reset_yes_removes_requested_tree_and_sqlite(tmp_path):
     tree = artifact_root / "python-bytes"
     tree.mkdir(parents=True)
     repo.mkdir()
-    sqlite = repo / "hermes_knowledge_vault.db"
+    sqlite = repo.parent / "hkb" / "hermes_knowledge_vault.db"
+    sqlite.parent.mkdir(parents=True, exist_ok=True)
     sqlite.write_text("db")
 
     code = hkb_maintenance.main(

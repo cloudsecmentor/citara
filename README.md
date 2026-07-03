@@ -230,51 +230,41 @@ scripts/ingest_podcast_transcripts.py "https://pythonbytes.fm/episodes/rss" --co
 
 This fetches transcript files, normalizes them into timestamped segments, and posts them to `POST /sources/transcript`.
 
-### BibleProject import and transcription pipeline
+### Configured podcast connectors
+
+Podcast source-specific behavior lives in connector modules under `hermes_knowledge.connectors.podcasts`, while `scripts/podcast_pipeline.py` is the config-driven entrypoint. Copy `hkb.sources.example.json` to an untracked `hkb.sources.json` and edit local source choices there.
 
 BibleProject uses a Simplecast RSS feed with official transcript PDFs for some episodes and audio-only entries for the rest:
 
 ```bash
-uv run python scripts/bibleproject_pipeline.py discover
-uv run python scripts/bibleproject_pipeline.py status
-uv run python scripts/bibleproject_pipeline.py import-published
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json discover bibleproject
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json status bibleproject
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json import-published bibleproject
 ```
-
-The pipeline is resumable. It stores state under `data/import-state/bibleproject_pipeline_state.json` and artifacts under `data/import-artifacts/bibleproject/`. Re-running a command checks state and skips episodes already imported.
 
 To sequentially transcribe missing audio locally with `faster-whisper`:
 
 ```bash
 uv pip install faster-whisper
-uv run python scripts/bibleproject_pipeline.py transcribe-missing \
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-missing bibleproject \
   --model small \
   --device cpu \
   --compute-type int8
 ```
 
-Stop with `Ctrl+C`; the current episode is marked interrupted/error and the next run resumes from the first unfinished episode. On a CUDA-capable VM, use options such as `--device cuda --compute-type float16`.
-
-For deployments where the API container is used but source provenance should be written directly to Postgres, provide `DATABASE_URL` to the script. It will best-effort annotate imported sources with `transcript_url`, episode GUID, duration, and transcript provenance metadata.
-
-### BEMA and Text in Us transcription queues
-
-BEMA published transcripts were already imported separately. The BEMA pipeline is therefore focused on the remaining episodes that need generated transcription. It reads the BEMA RSS feed, checks the vault for any existing `BEMA <episode>:` source, and queues only episodes not already represented in the DB:
+BEMA and Text in Us use the same entrypoint with different configured connectors:
 
 ```bash
-uv run python scripts/bema_pipeline.py discover
-uv run python scripts/bema_pipeline.py status
-uv run python scripts/bema_pipeline.py transcribe-missing --model small --device cpu --compute-type int8
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json status bema
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-missing bema --model small --device cpu --compute-type int8
+
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json status textinus
+uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-missing textinus --model small --device cpu --compute-type int8
 ```
 
-Text in Us currently exposes no published transcript links in its Anchor/Spotify RSS feed, so its pipeline is transcription-first:
+Connectors are sequential and resumable. They store state under `SOURCE_STATE_ROOT` and artifacts under `SOURCE_ARTIFACT_ROOT`, which default to sibling `../hkb/import-state` and `../hkb/source-artifacts` outside the automation repo. If stopped, rerun the same command and it continues from the first unfinished episode.
 
-```bash
-uv run python scripts/textinus_pipeline.py discover
-uv run python scripts/textinus_pipeline.py status
-uv run python scripts/textinus_pipeline.py transcribe-missing --model small --device cpu --compute-type int8
-```
-
-Both scripts are sequential and resumable. They store state under `data/import-state/` and artifacts under `data/import-artifacts/`. If stopped, rerun the same command and it continues from the first unfinished episode.
+For deployments where the API container is used but source provenance should be written directly to Postgres, provide `DATABASE_URL`. It will best-effort annotate imported sources with transcript URL, episode GUID, duration, and transcript provenance metadata.
 
 Podcast citations include clickable timestamp links when a chunk has `start_ms` and the source has `canonical_url`:
 

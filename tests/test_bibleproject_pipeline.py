@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
 
 import pytest
 
-SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "bibleproject_pipeline.py"
-spec = importlib.util.spec_from_file_location("bibleproject_pipeline", SCRIPT_PATH)
-bibleproject_pipeline = importlib.util.module_from_spec(spec)
-assert spec and spec.loader
-spec.loader.exec_module(bibleproject_pipeline)
+from hermes_knowledge.connectors.podcasts import bibleproject as bibleproject_pipeline
 
 episode_status = bibleproject_pipeline.episode_status
 extract_transcript_links = bibleproject_pipeline.extract_transcript_links

@@ -13,7 +13,7 @@ def _get_bool(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./hermes_knowledge_vault.db")
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///../hkb/hermes_knowledge_vault.db")
     object_store_type: str = os.getenv("OBJECT_STORE_TYPE", "local")
     object_store_path: str = os.getenv("OBJECT_STORE_PATH", "../hkb/object-store")
     source_artifact_root: str = os.getenv("SOURCE_ARTIFACT_ROOT", "../hkb/source-artifacts")

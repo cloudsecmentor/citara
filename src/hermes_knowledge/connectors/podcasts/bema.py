@@ -6,7 +6,6 @@ import html
 import json
 import os
 import re
-import sys
 import time
 import urllib.parse
 import urllib.request
@@ -15,11 +14,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-from artifact_paths import source_artifact_root, source_state_root
+from hermes_knowledge.core.config import settings
+from hermes_knowledge.core.paths import source_artifact_root, source_state_root
 
 DEFAULT_FEED_URL = "https://www.bemadiscipleship.com/rss"
 DEFAULT_API_URL = "http://127.0.0.1:8000"
@@ -295,7 +291,7 @@ def patch_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def existing_source_id(title: str) -> str | None:
-    database_url = os.getenv("DATABASE_URL", "postgresql+psycopg://hermes:hermes@127.0.0.1:5432/hermes_kv")
+    database_url = os.getenv("DATABASE_URL", settings.database_url)
     try:
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import sessionmaker
@@ -323,7 +319,7 @@ def existing_bema_sources_by_episode() -> dict[str, str]:
     Opens a single DB connection for bulk discovery; doing one connection per
     episode can exhaust local Postgres during 500+ episode scans.
     """
-    database_url = os.getenv("DATABASE_URL", "postgresql+psycopg://hermes:hermes@127.0.0.1:5432/hermes_kv")
+    database_url = os.getenv("DATABASE_URL", settings.database_url)
     try:
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import sessionmaker

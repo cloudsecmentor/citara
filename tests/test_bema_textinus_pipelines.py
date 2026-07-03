@@ -1,23 +1,19 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
 
 
-def load_script(name: str):
-    path = Path(__file__).resolve().parents[1] / "scripts" / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    spec.loader.exec_module(module)
+def load_connector(name: str):
+    module_name = f"hermes_knowledge.connectors.podcasts.{name}"
+    module = __import__(module_name, fromlist=[name])
     return module
 
 
 def test_specific_pipeline_defaults_use_external_hkb_roots():
-    bema = load_script("bema_pipeline")
-    textinus = load_script("textinus_pipeline")
-    bibleproject = load_script("bibleproject_pipeline")
+    bema = load_connector("bema")
+    textinus = load_connector("textinus")
+    bibleproject = load_connector("bibleproject")
     repo_root = Path(__file__).resolve().parents[1]
     hkb_root = repo_root.parent / "hkb"
 
@@ -86,7 +82,7 @@ TEXT_IN_US_RSS = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def test_bema_pipeline_parses_rss_and_transcript_versions():
-    bema = load_script("bema_pipeline")
+    bema = load_connector("bema")
 
     show_title, episodes = bema.parse_rss_items(BEMA_RSS)
     versions = bema.extract_transcript_links(BEMA_PAGE)
@@ -102,7 +98,7 @@ def test_bema_pipeline_parses_rss_and_transcript_versions():
 
 
 def test_textinus_pipeline_parses_anchor_feed_as_audio_only():
-    textinus = load_script("textinus_pipeline")
+    textinus = load_connector("textinus")
 
     show_title, episodes = textinus.parse_rss_items(TEXT_IN_US_RSS)
 
@@ -124,8 +120,8 @@ def test_textinus_pipeline_parses_anchor_feed_as_audio_only():
 
 
 def test_bema_and_textinus_state_helpers_choose_unfinished_episode(tmp_path: Path):
-    bema = load_script("bema_pipeline")
-    textinus = load_script("textinus_pipeline")
+    bema = load_connector("bema")
+    textinus = load_connector("textinus")
     state_path = tmp_path / "state.json"
     state_path.write_text(json.dumps({"episodes": {"done": {"transcription_status": "transcribed"}}}))
     episodes = [{"guid": "done"}, {"guid": "next"}]

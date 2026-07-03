@@ -34,6 +34,44 @@ RSS_WITH_TRANSCRIPT = """<?xml version="1.0"?>
 """
 
 
+RSS_BIBLEPROJECT_WITH_TRANSCRIPT = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>BibleProject</title>
+    <item>
+      <title><![CDATA[Episode With Transcript]]></title>
+      <guid>guid-1</guid>
+      <link>https://bibleproject.com/podcasts/episode-with-transcript/</link>
+      <itunes:duration xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">01:02:03</itunes:duration>
+      <description><![CDATA[
+        <p>FULL SHOW NOTES <a href="https://bibleproject.com/podcasts/episode-with-transcript/">show notes</a></p>
+        <p><a href="https://cdn.example.com/final-transcript.pdf">View this episode’s official transcript.</a></p>
+      ]]></description>
+      <enclosure url="https://audio.example.com/e1.mp3" length="100" type="audio/mpeg" />
+    </item>
+  </channel>
+</rss>
+"""
+
+RSS_BEMA = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>The BEMA Podcast</title>
+    <item>
+      <title><![CDATA[1: Trust the Story]]></title>
+      <guid>bema-1</guid>
+      <link>https://www.bemadiscipleship.com/1</link>
+      <itunes:season>1</itunes:season>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:53:08</itunes:duration>
+      <description><![CDATA[The Creation Story of Genesis 1]]></description>
+      <enclosure url="https://audio.example.com/bema-1.mp3" />
+    </item>
+  </channel>
+</rss>
+"""
+
+
 def test_resolve_apple_podcast_url_uses_itunes_lookup_feed_url():
     payload = {
         "resultCount": 1,
@@ -131,16 +169,76 @@ def test_state_paths_are_namespaced_by_slug(tmp_path):
     assert paths["artifact_dir"] == tmp_path / "hkb" / "source-artifacts" / "a-book-like-no-other"
 
 
-def test_parser_supports_generic_transcription_subcommand():
+def test_configured_bibleproject_connector_extracts_transcript_links():
+    config = {"connector": "bibleproject", "feed_url": "https://example.com/bibleproject.rss"}
+
+    show_title, episodes = podcast_pipeline.parse_source_rss_items(config, RSS_BIBLEPROJECT_WITH_TRANSCRIPT, feed_url=config["feed_url"])
+
+    assert show_title == "BibleProject"
+    assert episodes[0]["transcript_url"] == "https://cdn.example.com/final-transcript.pdf"
+    assert episodes[0]["rss_link"] == "https://bibleproject.com/podcasts/episode-with-transcript/"
+
+
+def test_configured_bema_connector_preserves_episode_metadata():
+    config = {"connector": "bema", "feed_url": "https://www.bemadiscipleship.com/rss"}
+
+    show_title, episodes = podcast_pipeline.parse_source_rss_items(config, RSS_BEMA, feed_url=config["feed_url"])
+
+    assert show_title == "The BEMA Podcast"
+    assert episodes[0]["episode"] == "1"
+    assert episodes[0]["season"] == "1"
+    assert episodes[0]["episode_title"] == "Trust the Story"
+
+
+def test_load_config_or_url_resolves_named_source_from_config_file(tmp_path):
+    config_path = tmp_path / "hkb.sources.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "name": "bema",
+                        "kind": "podcast",
+                        "connector": "bema",
+                        "feed_url": "https://www.bemadiscipleship.com/rss",
+                        "slug": "bema",
+                        "show_title": "The BEMA Podcast",
+                    }
+                ]
+            }
+        )
+    )
+
+    config = podcast_pipeline.load_config_or_url("bema", config_path=config_path)
+
+    assert config["name"] == "bema"
+    assert config["connector"] == "bema"
+    assert config["feed_url"] == "https://www.bemadiscipleship.com/rss"
+
+
+def test_load_config_or_url_treats_unknown_value_as_direct_url(tmp_path):
+    config_path = tmp_path / "hkb.sources.json"
+    config_path.write_text(json.dumps({"sources": []}))
+
+    config = podcast_pipeline.load_config_or_url("https://example.com/feed.rss", config_path=config_path)
+
+    assert config == {"url": "https://example.com/feed.rss"}
+
+
+def test_parser_supports_config_driven_source_names_and_config_path():
     args = podcast_pipeline.build_parser().parse_args([
+        "--config",
+        "hkb.sources.json",
         "transcribe-missing",
-        "https://example.com/feed.rss",
+        "bema",
         "--limit",
         "2",
         "--model",
         "small",
     ])
 
+    assert args.config == "hkb.sources.json"
     assert args.command == "transcribe-missing"
+    assert args.input == "bema"
     assert args.limit == 2
     assert args.model == "small"

@@ -17,6 +17,9 @@ ENV/
 .env
 .env.*
 !.env.example
+hkb.sources.json
+hkb.sources.*.json
+!hkb.sources.example.json
 .azure/
 .hermes/
 
