@@ -1,6 +1,6 @@
 # Ingestion Contract
 
-This document defines the deterministic fixture-backed contract for the first Hermes Knowledge Vault ingestion slices.
+This document defines the deterministic fixture-backed contract for the first Citara ingestion slices.
 
 ## Source priorities
 
@@ -10,7 +10,7 @@ Build and test in this order:
 2. Normalized podcast transcript fixtures
 3. Podcast URL/RSS discovery
 4. Podcast transcription provider integration
-5. Hermes MCP tools and lightweight inspection API
+5. MCP tools and lightweight inspection API
 
 PDFs, screenshots/images/OCR, and general web articles are deferred.
 
@@ -69,7 +69,7 @@ Keyword search is deterministic for the first slice:
 
 ## Context pack contract
 
-`retrieve_context_pack` returns compact evidence for Hermes:
+`retrieve_context_pack` returns compact evidence for the calling agent:
 
 ```json
 {

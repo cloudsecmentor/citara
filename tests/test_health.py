@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 
 def test_health_endpoint_returns_ok():
-    from hermes_knowledge.adapters.api.main import create_app
+    from citara.adapters.api.main import create_app
 
     app = create_app()
     client = TestClient(app)

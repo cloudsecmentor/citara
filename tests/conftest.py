@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
+
+# Isolate the test suite onto a throwaway SQLite database. This must run before any
+# `citara` import because the engine is created at import time from settings.database_url.
+# Without this, the API tests would connect to the user's real corpus DB (../citara).
+_TEST_DB = Path(tempfile.gettempdir()) / "citara_test.db"
+if _TEST_DB.exists():
+    _TEST_DB.unlink()
+os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from hermes_knowledge.core.models import Base
+from citara.core.models import Base
 
 
 @pytest.fixture()

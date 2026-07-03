@@ -3,8 +3,8 @@ from __future__ import annotations
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from hermes_knowledge.core.config import settings
-from hermes_knowledge.core.models import Base
+from citara.core.config import settings
+from citara.core.models import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

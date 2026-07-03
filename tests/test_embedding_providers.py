@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def test_openai_embedding_provider_posts_expected_request(monkeypatch):
-    from hermes_knowledge.core.embeddings.providers import OpenAIEmbeddingProvider
+    from citara.core.embeddings.providers import OpenAIEmbeddingProvider
 
     captured = {}
 
@@ -24,7 +24,7 @@ def test_openai_embedding_provider_posts_expected_request(monkeypatch):
             captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
             return FakeResponse()
 
-    monkeypatch.setattr("hermes_knowledge.core.embeddings.providers.httpx.Client", FakeClient)
+    monkeypatch.setattr("citara.core.embeddings.providers.httpx.Client", FakeClient)
 
     provider = OpenAIEmbeddingProvider(api_key="test-key", model="text-embedding-3-small")
     vectors = provider.embed_texts(["one", "two"])
@@ -36,7 +36,7 @@ def test_openai_embedding_provider_posts_expected_request(monkeypatch):
 
 
 def test_azure_foundry_embedding_provider_posts_expected_request(monkeypatch):
-    from hermes_knowledge.core.embeddings.providers import AzureFoundryEmbeddingProvider
+    from citara.core.embeddings.providers import AzureFoundryEmbeddingProvider
 
     captured = {}
 
@@ -58,7 +58,7 @@ def test_azure_foundry_embedding_provider_posts_expected_request(monkeypatch):
             captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
             return FakeResponse()
 
-    monkeypatch.setattr("hermes_knowledge.core.embeddings.providers.httpx.Client", FakeClient)
+    monkeypatch.setattr("citara.core.embeddings.providers.httpx.Client", FakeClient)
 
     provider = AzureFoundryEmbeddingProvider(
         endpoint="https://example.cognitiveservices.azure.com/",

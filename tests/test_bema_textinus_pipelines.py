@@ -5,24 +5,24 @@ from pathlib import Path
 
 
 def load_connector(name: str):
-    module_name = f"hermes_knowledge.connectors.podcasts.{name}"
+    module_name = f"citara.connectors.podcasts.{name}"
     module = __import__(module_name, fromlist=[name])
     return module
 
 
-def test_specific_pipeline_defaults_use_external_hkb_roots():
+def test_specific_pipeline_defaults_use_external_citara_roots():
     bema = load_connector("bema")
     textinus = load_connector("textinus")
     bibleproject = load_connector("bibleproject")
     repo_root = Path(__file__).resolve().parents[1]
-    hkb_root = repo_root.parent / "hkb"
+    citara_root = repo_root.parent / "citara"
 
-    assert bema.DEFAULT_ARTIFACT_DIR == hkb_root / "source-artifacts" / "bema"
-    assert bema.DEFAULT_STATE == hkb_root / "import-state" / "bema_pipeline_state.json"
-    assert textinus.DEFAULT_ARTIFACT_DIR == hkb_root / "source-artifacts" / "textinus"
-    assert textinus.DEFAULT_STATE == hkb_root / "import-state" / "textinus_pipeline_state.json"
-    assert bibleproject.DEFAULT_ARTIFACT_DIR == hkb_root / "source-artifacts" / "bibleproject"
-    assert bibleproject.DEFAULT_STATE == hkb_root / "import-state" / "bibleproject_pipeline_state.json"
+    assert bema.DEFAULT_ARTIFACT_DIR == citara_root / "source-artifacts" / "bema"
+    assert bema.DEFAULT_STATE == citara_root / "import-state" / "bema_pipeline_state.json"
+    assert textinus.DEFAULT_ARTIFACT_DIR == citara_root / "source-artifacts" / "textinus"
+    assert textinus.DEFAULT_STATE == citara_root / "import-state" / "textinus_pipeline_state.json"
+    assert bibleproject.DEFAULT_ARTIFACT_DIR == citara_root / "source-artifacts" / "bibleproject"
+    assert bibleproject.DEFAULT_STATE == citara_root / "import-state" / "bibleproject_pipeline_state.json"
 
 
 BEMA_RSS = """<?xml version="1.0" encoding="UTF-8"?>

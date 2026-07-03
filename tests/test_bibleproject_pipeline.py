@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from hermes_knowledge.connectors.podcasts import bibleproject as bibleproject_pipeline
+from citara.connectors.podcasts import bibleproject as bibleproject_pipeline
 
 episode_status = bibleproject_pipeline.episode_status
 extract_transcript_links = bibleproject_pipeline.extract_transcript_links

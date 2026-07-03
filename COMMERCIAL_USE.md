@@ -1,6 +1,6 @@
 # Commercial Use
 
-Hermes Knowledge Vault is source-available for personal and noncommercial use under the PolyForm Noncommercial License 1.0.0.
+Citara is source-available for personal and noncommercial use under the PolyForm Noncommercial License 1.0.0.
 
 Commercial use is not permitted by the default license. Commercial use includes, but is not limited to:
 

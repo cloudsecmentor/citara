@@ -17,9 +17,9 @@ ENV/
 .env
 .env.*
 !.env.example
-hkb.sources.json
-hkb.sources.*.json
-!hkb.sources.example.json
+citara.sources.json
+citara.sources.*.json
+!citara.sources.example.json
 .azure/
 .hermes/
 
@@ -27,7 +27,7 @@ hkb.sources.*.json
 *.db
 *.sqlite
 *.sqlite3
-hermes_knowledge_vault.db
+citara.db
 data/
 status.md
 backup*.sql

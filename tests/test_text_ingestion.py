@@ -2,8 +2,8 @@ from __future__ import annotations
 
 
 def test_add_text_source_chunks_and_searches_note(db_session, fixtures_dir):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.retrieval.keyword import search_knowledge
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.retrieval.keyword import search_knowledge
 
     text = (fixtures_dir / "sources" / "notes" / "procrastination.md").read_text()
 
@@ -23,8 +23,8 @@ def test_add_text_source_chunks_and_searches_note(db_session, fixtures_dir):
 
 
 def test_retrieve_context_pack_returns_compact_cited_chunks(db_session, fixtures_dir):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.retrieval.context_pack import retrieve_context_pack
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.retrieval.context_pack import retrieve_context_pack
 
     text = (fixtures_dir / "sources" / "notes" / "procrastination.md").read_text()
     add_text_source(db_session, title="Procrastination Note", text=text)

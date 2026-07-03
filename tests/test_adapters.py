@@ -4,7 +4,7 @@ from __future__ import annotations
 def test_api_add_text_search_context_pack_and_delete_source():
     from fastapi.testclient import TestClient
 
-    from hermes_knowledge.adapters.api.main import create_app
+    from citara.adapters.api.main import create_app
 
     with TestClient(create_app()) as client:
         title = "API Procrastination Note"
@@ -36,8 +36,8 @@ def test_api_add_text_search_context_pack_and_delete_source():
         assert not any(result["source_id"] == source_id for result in search_after_delete.json()["results"])
 
 
-def test_mcp_server_exposes_hermes_tools():
-    from hermes_knowledge.adapters.mcp.server import create_mcp_server
+def test_mcp_server_exposes_tools():
+    from citara.adapters.mcp.server import create_mcp_server
 
     server = create_mcp_server()
     tool_names = set(getattr(server, "_tools", {}).keys())
@@ -63,7 +63,7 @@ def test_mcp_server_exposes_hermes_tools():
 
 
 def test_mcp_stdio_main_runs_stdio_transport(monkeypatch):
-    from hermes_knowledge.adapters.mcp import stdio
+    from citara.adapters.mcp import stdio
 
     calls = []
 

@@ -33,7 +33,7 @@ class TextExtractor(HTMLParser):
 
 
 def fetch_text(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": "hermes-knowledge-vault/0.1"})
+    request = urllib.request.Request(url, headers={"User-Agent": "citara/0.1"})
     with urllib.request.urlopen(request, timeout=30) as response:
         return response.read().decode("utf-8", "ignore")
 

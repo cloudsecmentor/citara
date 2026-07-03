@@ -1,6 +1,8 @@
-# Hermes Knowledge Vault
+# Citara
 
-Hermes Knowledge Vault is a local-first personal knowledge backend for ingesting notes and podcast transcripts, preserving source metadata, generating embeddings, and retrieving citation-backed context through FastAPI and Hermes MCP tools.
+Citara is a local-first personal knowledge backend for ingesting notes and podcast transcripts, preserving source metadata, generating embeddings, and retrieving citation-backed context through FastAPI and MCP tools that any AI agent can call.
+
+> Formerly "Hermes Knowledge Vault". Renamed to Citara to be agent-agnostic — it is a source-faithful context backend for any AI agent, not tied to a specific assistant.
 
 It is designed for personal research workflows where you want to ask questions over your own material while keeping sources, transcript timestamps, and retrieval context inspectable.
 
@@ -28,7 +30,7 @@ This project is **source-available**, not OSI open source.
 - Keyword, vector, and hybrid retrieval.
 - Citation/context-pack output.
 - FastAPI HTTP API.
-- Hermes MCP stdio tools.
+- MCP stdio tools (agent-agnostic).
 - Alembic migrations.
 - Docker Compose local runtime.
 
@@ -87,7 +89,7 @@ docker compose up -d postgres api
 The Docker Postgres database is stored in the named volume:
 
 ```text
-hermes-knowledge-vault_postgres_data
+citara_postgres_data
 ```
 
 To start with a completely fresh database, delete the volume and restart the services:
@@ -102,7 +104,7 @@ This deletes all ingested sources, transcript segments, chunks, embeddings, and 
 For safer source-artifact and DB maintenance, preview destructive work first:
 
 ```bash
-uv run python scripts/hkb_maintenance.py reset --dry-run \
+uv run python scripts/citara_maintenance.py reset --dry-run \
   --remove-tree python-bytes \
   --reset-sqlite \
   --reset-docker-db
@@ -111,7 +113,7 @@ uv run python scripts/hkb_maintenance.py reset --dry-run \
 Then execute only after reviewing the printed actions:
 
 ```bash
-uv run python scripts/hkb_maintenance.py reset --yes \
+uv run python scripts/citara_maintenance.py reset --yes \
   --remove-tree python-bytes \
   --reset-sqlite \
   --reset-docker-db
@@ -123,12 +125,12 @@ Rebuild the external source-artifact tree and manifest from available local arti
 uv run python scripts/organize_source_artifacts.py
 ```
 
-The organizer reads `SOURCE_ARTIFACT_ROOT` and `SOURCE_STATE_ROOT`, defaulting to the sibling `../hkb` tree.
+The organizer reads `SOURCE_ARTIFACT_ROOT` and `SOURCE_STATE_ROOT`, defaulting to the sibling `../citara` tree.
 
 Verify the reset:
 
 ```bash
-docker compose exec -T postgres psql -U hermes -d hermes_kv -tAc \
+docker compose exec -T postgres psql -U citara -d citara -tAc \
 "select version_num from alembic_version; select count(*) from sources; select count(*) from transcript_segments; select count(*) from chunks; select count(*) from embeddings;"
 ```
 
@@ -145,13 +147,13 @@ Expected result after reset:
 Back up before resetting:
 
 ```bash
-docker compose exec -T postgres pg_dump -U hermes hermes_kv > backup.sql
+docker compose exec -T postgres pg_dump -U citara citara > backup.sql
 ```
 
 Restore a backup:
 
 ```bash
-docker compose exec -T postgres psql -U hermes -d hermes_kv < backup.sql
+docker compose exec -T postgres psql -U citara -d citara < backup.sql
 ```
 
 ## Docker smoke check
@@ -232,21 +234,21 @@ This fetches transcript files, normalizes them into timestamped segments, and po
 
 ### Configured podcast connectors
 
-Podcast source-specific behavior lives in connector modules under `hermes_knowledge.connectors.podcasts`, while `scripts/podcast_pipeline.py` is the config-driven entrypoint. Copy `hkb.sources.example.json` to an untracked `hkb.sources.json` and edit local source choices there.
+Podcast source-specific behavior lives in connector modules under `citara.connectors.podcasts`, while `scripts/podcast_pipeline.py` is the config-driven entrypoint. Copy `citara.sources.example.json` to an untracked `citara.sources.json` and edit local source choices there.
 
 BibleProject uses a Simplecast RSS feed with official transcript PDFs for some episodes and audio-only entries for the rest:
 
 ```bash
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json discover bibleproject
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json status bibleproject
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json import-published bibleproject
+uv run python scripts/podcast_pipeline.py --config citara.sources.json discover bibleproject
+uv run python scripts/podcast_pipeline.py --config citara.sources.json status bibleproject
+uv run python scripts/podcast_pipeline.py --config citara.sources.json import-published bibleproject
 ```
 
 To sequentially transcribe missing audio locally with `faster-whisper`:
 
 ```bash
 uv pip install faster-whisper
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-missing bibleproject \
+uv run python scripts/podcast_pipeline.py --config citara.sources.json transcribe-missing bibleproject \
   --model small \
   --device cpu \
   --compute-type int8
@@ -255,14 +257,14 @@ uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-m
 BEMA and Text in Us use the same entrypoint with different configured connectors:
 
 ```bash
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json status bema
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-missing bema --model small --device cpu --compute-type int8
+uv run python scripts/podcast_pipeline.py --config citara.sources.json status bema
+uv run python scripts/podcast_pipeline.py --config citara.sources.json transcribe-missing bema --model small --device cpu --compute-type int8
 
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json status textinus
-uv run python scripts/podcast_pipeline.py --config hkb.sources.json transcribe-missing textinus --model small --device cpu --compute-type int8
+uv run python scripts/podcast_pipeline.py --config citara.sources.json status textinus
+uv run python scripts/podcast_pipeline.py --config citara.sources.json transcribe-missing textinus --model small --device cpu --compute-type int8
 ```
 
-Connectors are sequential and resumable. They store state under `SOURCE_STATE_ROOT` and artifacts under `SOURCE_ARTIFACT_ROOT`, which default to sibling `../hkb/import-state` and `../hkb/source-artifacts` outside the automation repo. If stopped, rerun the same command and it continues from the first unfinished episode.
+Connectors are sequential and resumable. They store state under `SOURCE_STATE_ROOT` and artifacts under `SOURCE_ARTIFACT_ROOT`, which default to sibling `../citara/import-state` and `../citara/source-artifacts` outside the automation repo. If stopped, rerun the same command and it continues from the first unfinished episode.
 
 For deployments where the API container is used but source provenance should be written directly to Postgres, provide `DATABASE_URL`. It will best-effort annotate imported sources with transcript URL, episode GUID, duration, and transcript provenance metadata.
 
@@ -332,16 +334,16 @@ Do not commit provider credentials, `.env` files, `.azure/`, database dumps, or 
 
 ## MCP stdio server
 
-Hermes can launch the MCP server over stdio with:
+Any MCP client (Claude, Cursor, or your own agent) can launch the MCP server over stdio with:
 
 ```bash
-uv run hermes-kv-mcp
+uv run citara-mcp
 ```
 
 Equivalent module form:
 
 ```bash
-uv run python -m hermes_knowledge.adapters.mcp.stdio
+uv run python -m citara.adapters.mcp.stdio
 ```
 
 Current MCP tools:

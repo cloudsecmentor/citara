@@ -6,9 +6,9 @@ import json
 def test_add_transcript_source_preserves_segments_and_timestamp_citations(db_session, fixtures_dir):
     from sqlalchemy import select
 
-    from hermes_knowledge.core.ingestion.transcript import add_transcript_source
-    from hermes_knowledge.core.models import TranscriptSegment
-    from hermes_knowledge.core.retrieval.keyword import search_knowledge
+    from citara.core.ingestion.transcript import add_transcript_source
+    from citara.core.models import TranscriptSegment
+    from citara.core.retrieval.keyword import search_knowledge
 
     payload = json.loads((fixtures_dir / "sources" / "transcripts" / "sample_podcast_transcript.json").read_text())
 

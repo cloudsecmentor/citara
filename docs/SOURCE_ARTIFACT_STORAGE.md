@@ -1,6 +1,6 @@
 # Source artifact storage design
 
-This document defines how Hermes Knowledge Vault should store raw source-transcript artifacts so the retrieval database can be deleted, rebuilt, rechunked, or re-embedded without repeating expensive transcription or rediscovery work.
+This document defines how Citara should store raw source-transcript artifacts so the retrieval database can be deleted, rebuilt, rechunked, or re-embedded without repeating expensive transcription or rediscovery work.
 
 ## Goals
 
@@ -46,30 +46,30 @@ The repository should not contain:
 - Postgres/SQLite databases;
 - raw audio/video except tiny test fixtures, if ever needed.
 
-Defaults should point outside the repository so real corpora are not accidentally committed. The recommended local default is a sibling `../hkb` directory:
+Defaults should point outside the repository so real corpora are not accidentally committed. The recommended local default is a sibling `../citara` directory:
 
 ```dotenv
-SOURCE_ARTIFACT_ROOT=../hkb/source-artifacts
-SOURCE_STATE_ROOT=../hkb/import-state
+SOURCE_ARTIFACT_ROOT=../citara/source-artifacts
+SOURCE_STATE_ROOT=../citara/import-state
 ```
 
 For a larger real personal corpus, configure an absolute source-artifact root in `.env`:
 
 ```dotenv
-SOURCE_ARTIFACT_ROOT=/path/to/hkb/source-artifacts
-SOURCE_STATE_ROOT=/path/to/hkb/import-state
+SOURCE_ARTIFACT_ROOT=/path/to/citara/source-artifacts
+SOURCE_STATE_ROOT=/path/to/citara/import-state
 ```
 
 or on a mounted/external volume:
 
 ```dotenv
-SOURCE_ARTIFACT_ROOT=/Volumes/HKB/source-artifacts
-SOURCE_STATE_ROOT=/Volumes/HKB/import-state
+SOURCE_ARTIFACT_ROOT=/Volumes/Citara/source-artifacts
+SOURCE_STATE_ROOT=/Volumes/Citara/import-state
 ```
 
 `.env` itself is ignored by Git. Commit only `.env.example` with safe defaults and comments.
 
-Importer code should resolve artifact paths from `SOURCE_ARTIFACT_ROOT` instead of assuming any repository-relative `data/import-artifacts/sources` path. Repo-relative `./data/...` paths are still ignored by Git and can be used for throwaway experiments, but new generic source importers should default to `../hkb/...` or an explicit absolute path.
+Importer code should resolve artifact paths from `SOURCE_ARTIFACT_ROOT` instead of assuming any repository-relative `data/import-artifacts/sources` path. Repo-relative `./data/...` paths are still ignored by Git and can be used for throwaway experiments, but new generic source importers should default to `../citara/...` or an explicit absolute path.
 
 The supported organizer command is:
 
@@ -82,7 +82,7 @@ It writes `organization-manifest.json` beside the source-artifact and import-sta
 Preview destructive artifact/database maintenance before executing it:
 
 ```bash
-uv run python scripts/hkb_maintenance.py reset --dry-run \
+uv run python scripts/citara_maintenance.py reset --dry-run \
   --remove-tree <source-tree-slug> \
   --reset-sqlite \
   --reset-docker-db
@@ -115,26 +115,26 @@ Use a source-tree name that represents the collection, creator, channel, book, c
 Default development roots:
 
 ```text
-SOURCE_ARTIFACT_ROOT=../hkb/source-artifacts
-SOURCE_STATE_ROOT=../hkb/import-state
+SOURCE_ARTIFACT_ROOT=../citara/source-artifacts
+SOURCE_STATE_ROOT=../citara/import-state
 ```
 
 Examples with the default sibling root:
 
 ```text
-../hkb/source-artifacts/bema/items/001-trust-the-story/
-../hkb/source-artifacts/bibleproject/items/god-e1-god-or-gods/
-../hkb/source-artifacts/tim-mackie-youtube/items/yt-dq1x45abcde/
-../hkb/source-artifacts/surprised-by-hope/items/chapter-03/
-../hkb/source-artifacts/personal-notes/items/daily-reflection/
+../citara/source-artifacts/bema/items/001-trust-the-story/
+../citara/source-artifacts/bibleproject/items/god-e1-god-or-gods/
+../citara/source-artifacts/tim-mackie-youtube/items/yt-dq1x45abcde/
+../citara/source-artifacts/surprised-by-hope/items/chapter-03/
+../citara/source-artifacts/personal-notes/items/daily-reflection/
 ```
 
 Equivalent absolute-path examples:
 
 ```text
-/path/to/hkb/source-artifacts/bema/items/001-trust-the-story/
-/path/to/hkb/source-artifacts/tim-mackie-youtube/items/yt-dq1x45abcde/
-/path/to/hkb/source-artifacts/surprised-by-hope/items/chapter-03/
+/path/to/citara/source-artifacts/bema/items/001-trust-the-story/
+/path/to/citara/source-artifacts/tim-mackie-youtube/items/yt-dq1x45abcde/
+/path/to/citara/source-artifacts/surprised-by-hope/items/chapter-03/
 ```
 
 Current podcast-specific paths such as `data/import-artifacts/podcasts/<slug>/` may continue to work during migration, but new generic pipelines should prefer `data/import-artifacts/sources/<source-tree-slug>/`.
@@ -148,10 +148,10 @@ Current podcast-specific paths such as `data/import-artifacts/podcasts/<slug>/` 
 | `source-tree.json` | Metadata shared by the collection | author/channel/show/book/course metadata |
 | `source.json` | Metadata for one importable item | canonical URL, title, dates, provenance, duration |
 | `transcript.raw.json` | Provider-native transcript output | Whisper JSON, downloaded transcript JSON, OCR JSON |
-| `transcript.normalized.json` | HKB-normalized transcript segments | `start_ms`, `end_ms`, `speaker`, `text` |
+| `transcript.normalized.json` | Citara-normalized transcript segments | `start_ms`, `end_ms`, `speaker`, `text` |
 | `transcript.txt` | Human-readable full transcript | debugging, diffing, manual review |
 | `transcript.vtt` | Optional timestamped text format | playback, citation QA, portability |
-| `import-payload.json` | Exact payload sent to HKB import API | repeatable re-import |
+| `import-payload.json` | Exact payload sent to Citara import API | repeatable re-import |
 | `import-result.json` | API/importer result and source IDs | audit and dedupe |
 
 ## Required item metadata: `source.json`
@@ -220,11 +220,11 @@ For other providers, preserve their native fields instead of forcing them into t
 
 ### `transcript.normalized.json`
 
-This is the canonical generated artifact for HKB re-import. It should use milliseconds and stable segment order:
+This is the canonical generated artifact for Citara re-import. It should use milliseconds and stable segment order:
 
 ```json
 {
-  "schema": "hkb.transcript.normalized.v1",
+  "schema": "citara.transcript.normalized.v1",
   "language": "en",
   "segments": [
     {
@@ -259,7 +259,7 @@ Store VTT when timestamps are available or generated. This is optional but usefu
 
 ## Import payload
 
-`import-payload.json` should be the exact request body needed to recreate the source in HKB, normally for `POST /sources/transcript`.
+`import-payload.json` should be the exact request body needed to recreate the source in Citara, normally for `POST /sources/transcript`.
 
 It should include:
 
@@ -322,7 +322,7 @@ This file is not the source of truth for the transcript, but it is useful for au
 
 ## Database metadata
 
-The HKB database should store enough pointers to reconnect rows to durable artifacts, but it should not be the only copy of generated transcripts.
+The Citara database should store enough pointers to reconnect rows to durable artifacts, but it should not be the only copy of generated transcripts.
 
 At source level, store fields like:
 
@@ -403,7 +403,7 @@ data/import-artifacts/sources/bema/items/001-trust-the-story/transcript.raw.json
 Object-store URI:
 
 ```text
-s3://hkb-artifacts/sources/bema/items/001-trust-the-story/transcript.raw.json
+s3://citara-artifacts/sources/bema/items/001-trust-the-story/transcript.raw.json
 ```
 
 Importer code should treat artifact paths as URIs where possible.

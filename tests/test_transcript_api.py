@@ -6,7 +6,7 @@ import json
 def test_api_ingests_transcript_fixture_and_searches_timestamp_citation(fixtures_dir):
     from fastapi.testclient import TestClient
 
-    from hermes_knowledge.adapters.api.main import create_app
+    from citara.adapters.api.main import create_app
 
     payload = json.loads((fixtures_dir / "sources" / "transcripts" / "sample_podcast_transcript.json").read_text())
 

@@ -11,11 +11,11 @@ repo_src = Path(__file__).resolve().parents[1] / "src"
 if str(repo_src) not in sys.path:
     sys.path.insert(0, str(repo_src))
 
-from hermes_knowledge.core.embeddings.providers import get_embedding_provider  # noqa: E402
+from citara.core.embeddings.providers import get_embedding_provider  # noqa: E402
 
 
 def main() -> None:
-    text = " ".join(sys.argv[1:]) or "Hermes Knowledge Vault embedding smoke test"
+    text = " ".join(sys.argv[1:]) or "Citara embedding smoke test"
     provider = get_embedding_provider()
     vector = provider.embed_texts([text])[0]
     print(

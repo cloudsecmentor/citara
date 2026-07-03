@@ -15,12 +15,12 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Callable
 
-from hermes_knowledge.core.config import settings
-from hermes_knowledge.core.paths import source_artifact_root, source_state_root
+from citara.core.config import settings
+from citara.core.paths import source_artifact_root, source_state_root
 
 DEFAULT_API_URL = "http://127.0.0.1:8000"
-DEFAULT_CONFIG_PATH = Path("hkb.sources.json")
-USER_AGENT = "hermes-knowledge-vault/0.1 (+generic podcast import pipeline)"
+DEFAULT_CONFIG_PATH = Path("citara.sources.json")
+USER_AGENT = "citara/0.1 (+generic podcast import pipeline)"
 ITUNES_NS = "http://www.itunes.com/dtds/podcast-1.0.dtd"
 PODCAST_NS = "https://podcastindex.org/namespace/1.0"
 CONTENT_NS = "http://purl.org/rss/1.0/modules/content/"
@@ -79,9 +79,9 @@ def paths_for_slug(slug_or_title: str, *, base_dir: Path = Path(".")) -> dict[st
         artifact_dir = source_artifact_root() / slug
         state = source_state_root() / f"{slug}_pipeline_state.json"
     else:
-        hkb_root = base_dir / "hkb"
-        artifact_dir = hkb_root / "source-artifacts" / slug
-        state = hkb_root / "import-state" / f"{slug}_pipeline_state.json"
+        citara_root = base_dir / "citara"
+        artifact_dir = citara_root / "source-artifacts" / slug
+        state = citara_root / "import-state" / f"{slug}_pipeline_state.json"
     return {
         "state": state,
         "artifact_dir": artifact_dir,
@@ -182,7 +182,7 @@ def parse_rss_items(rss_text: str, *, feed_url: str | None = None) -> tuple[str,
 
 
 def load_connector_module(connector: str) -> Any:
-    module_name = f"hermes_knowledge.connectors.podcasts.{connector}"
+    module_name = f"citara.connectors.podcasts.{connector}"
     try:
         return __import__(module_name, fromlist=[connector])
     except ImportError as exc:
@@ -396,7 +396,7 @@ def existing_source_id(title: str, canonical_url: str | None = None) -> str | No
         from sqlalchemy import create_engine, or_, select
         from sqlalchemy.orm import sessionmaker
 
-        from hermes_knowledge.core.models import Source
+        from citara.core.models import Source
     except Exception:
         return None
     try:
@@ -420,7 +420,7 @@ def annotate_source_metadata(source_id: str, metadata: dict[str, Any]) -> None:
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 
-        from hermes_knowledge.core.models import Source
+        from citara.core.models import Source
     except Exception:
         return
     engine = create_engine(database_url, future=True)
@@ -790,9 +790,9 @@ def run_command(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generic resumable podcast transcript pipeline for HKB")
+    parser = argparse.ArgumentParser(description="Generic resumable podcast transcript pipeline for Citara")
     parser.add_argument("--base-dir", default=".", help="Project/base directory for data paths")
-    parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Source config file, usually hkb.sources.json")
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Source config file, usually citara.sources.json")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ["discover", "status", "import-published", "run", "transcribe-missing"]:
         p = sub.add_parser(name)

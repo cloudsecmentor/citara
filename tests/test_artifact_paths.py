@@ -10,14 +10,14 @@ assert spec and spec.loader
 spec.loader.exec_module(artifact_paths)
 
 
-def test_source_roots_default_to_sibling_hkb(monkeypatch):
+def test_source_roots_default_to_sibling_citara(monkeypatch):
     monkeypatch.delenv("SOURCE_ARTIFACT_ROOT", raising=False)
     monkeypatch.delenv("SOURCE_STATE_ROOT", raising=False)
 
     repo_root = Path(__file__).resolve().parents[1]
 
-    assert artifact_paths.source_artifact_root() == repo_root.parent / "hkb" / "source-artifacts"
-    assert artifact_paths.source_state_root() == repo_root.parent / "hkb" / "import-state"
+    assert artifact_paths.source_artifact_root() == repo_root.parent / "citara" / "source-artifacts"
+    assert artifact_paths.source_state_root() == repo_root.parent / "citara" / "import-state"
 
 
 def test_source_roots_can_be_overridden_with_env(monkeypatch, tmp_path):

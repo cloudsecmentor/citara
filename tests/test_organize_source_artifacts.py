@@ -32,8 +32,8 @@ def test_organize_all_writes_generic_payload_artifacts(tmp_path):
     payload = repo / "data" / "import-artifacts" / "podcasts" / "fixture-show" / "payloads" / "fixture-episode.json"
     write_payload(payload)
 
-    artifact_root = tmp_path / "hkb" / "source-artifacts"
-    state_root = tmp_path / "hkb" / "import-state"
+    artifact_root = tmp_path / "citara" / "source-artifacts"
+    state_root = tmp_path / "citara" / "import-state"
 
     summary = organizer.organize_all(repo=repo, artifact_root=artifact_root, state_root=state_root)
 
@@ -67,8 +67,8 @@ def test_organize_all_rewrites_legacy_state_artifact_paths(tmp_path):
         )
     )
 
-    artifact_root = tmp_path / "hkb" / "source-artifacts"
-    state_root = tmp_path / "hkb" / "import-state"
+    artifact_root = tmp_path / "citara" / "source-artifacts"
+    state_root = tmp_path / "citara" / "import-state"
     organizer.organize_all(repo=repo, artifact_root=artifact_root, state_root=state_root)
 
     copied = json.loads((state_root / "bibleproject_pipeline_state.json").read_text())
@@ -93,8 +93,8 @@ def test_bema_transcript_source_json_links_episode_page_and_version(tmp_path):
         )
     )
 
-    artifact_root = tmp_path / "hkb" / "source-artifacts"
-    state_root = tmp_path / "hkb" / "import-state"
+    artifact_root = tmp_path / "citara" / "source-artifacts"
+    state_root = tmp_path / "citara" / "import-state"
     organizer.organize_all(repo=repo, artifact_root=artifact_root, state_root=state_root)
 
     source_json = artifact_root / "bema" / "items" / "bema-32-session-1-capstone-current" / "source.json"

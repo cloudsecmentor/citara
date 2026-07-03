@@ -2,8 +2,8 @@ from __future__ import annotations
 
 
 def test_text_ingestion_records_succeeded_job(db_session):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.jobs import get_ingestion_job, list_ingestion_jobs
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.jobs import get_ingestion_job, list_ingestion_jobs
 
     source = add_text_source(db_session, title="Job Note", text="job status text")
 
@@ -22,7 +22,7 @@ def test_text_ingestion_records_succeeded_job(db_session):
 
 
 def test_get_missing_ingestion_job_returns_none(db_session):
-    from hermes_knowledge.core.jobs import get_ingestion_job
+    from citara.core.jobs import get_ingestion_job
 
     assert get_ingestion_job(db_session, "job_missing") is None
 
@@ -30,7 +30,7 @@ def test_get_missing_ingestion_job_returns_none(db_session):
 def test_api_exposes_ingestion_jobs():
     from fastapi.testclient import TestClient
 
-    from hermes_knowledge.adapters.api.main import create_app
+    from citara.adapters.api.main import create_app
 
     with TestClient(create_app()) as client:
         response = client.post("/sources/text", json={"title": "API Job Note", "text": "api job status text"})
@@ -54,7 +54,7 @@ def test_api_exposes_ingestion_jobs():
 def test_api_missing_ingestion_job_returns_404():
     from fastapi.testclient import TestClient
 
-    from hermes_knowledge.adapters.api.main import create_app
+    from citara.adapters.api.main import create_app
 
     with TestClient(create_app()) as client:
         response = client.get("/jobs/job_missing")

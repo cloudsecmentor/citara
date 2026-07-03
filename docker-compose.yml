@@ -2,24 +2,24 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: hermes_kv
-      POSTGRES_USER: hermes
-      POSTGRES_PASSWORD: hermes
+      POSTGRES_DB: citara
+      POSTGRES_USER: citara
+      POSTGRES_PASSWORD: citara
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hermes -d hermes_kv"]
+      test: ["CMD-SHELL", "pg_isready -U citara -d citara"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   api:
     build: .
-    command: sh -c "alembic upgrade head && uvicorn hermes_knowledge.adapters.api.main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "alembic upgrade head && uvicorn citara.adapters.api.main:app --host 0.0.0.0 --port 8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://hermes:hermes@postgres:5432/hermes_kv
+      DATABASE_URL: postgresql+psycopg://citara:citara@postgres:5432/citara
       DEFAULT_TENANT_ID: local
       DEFAULT_USER_ID: owner
     ports:
@@ -30,9 +30,9 @@ services:
 
   mcp:
     build: .
-    command: hermes-kv-mcp
+    command: citara-mcp
     environment:
-      DATABASE_URL: postgresql+psycopg://hermes:hermes@postgres:5432/hermes_kv
+      DATABASE_URL: postgresql+psycopg://citara:citara@postgres:5432/citara
       DEFAULT_TENANT_ID: local
       DEFAULT_USER_ID: owner
     depends_on:
@@ -43,7 +43,7 @@ services:
     build: .
     command: python -c "print('worker stub')"
     environment:
-      DATABASE_URL: postgresql+psycopg://hermes:hermes@postgres:5432/hermes_kv
+      DATABASE_URL: postgresql+psycopg://citara:citara@postgres:5432/citara
       DEFAULT_TENANT_ID: local
       DEFAULT_USER_ID: owner
     depends_on:

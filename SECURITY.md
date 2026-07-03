@@ -28,4 +28,4 @@ The repository includes `.gitignore` rules for common local artifacts, but users
 
 ## Third-party content
 
-Hermes Knowledge Vault can ingest external content such as podcast transcripts. Users are responsible for ensuring they have the right to ingest, store, process, and redistribute any external content they use with the software.
+Citara can ingest external content such as podcast transcripts. Users are responsible for ensuring they have the right to ingest, store, process, and redistribute any external content they use with the software.

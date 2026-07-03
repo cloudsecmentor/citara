@@ -3,13 +3,13 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hermes-knowledge-vault"
+name = "citara"
 version = "0.1.0"
 description = "Local-first personal knowledge backend for notes, podcast transcripts, embeddings, and citation-backed retrieval"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "Hermes Knowledge Vault contributors" }]
+authors = [{ name = "Citara contributors" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hermes-kv-mcp = "hermes_knowledge.adapters.mcp.stdio:main"
+citara-mcp = "citara.adapters.mcp.stdio:main"
 
 [project.optional-dependencies]
 dev = [
@@ -50,4 +50,4 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/hermes_knowledge"]
+packages = ["src/citara"]

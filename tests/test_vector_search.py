@@ -4,8 +4,8 @@ from sqlalchemy import select
 
 
 def test_text_ingestion_creates_deterministic_embeddings(db_session):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.models import Chunk, Embedding
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.models import Chunk, Embedding
 
     source = add_text_source(db_session, title="Vector Note", text="cats chase mice. dogs guard houses.")
 
@@ -20,9 +20,9 @@ def test_text_ingestion_creates_deterministic_embeddings(db_session):
 
 
 def test_source_deletion_removes_embeddings(db_session):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.models import Embedding
-    from hermes_knowledge.core.sources import delete_source
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.models import Embedding
+    from citara.core.sources import delete_source
 
     source = add_text_source(db_session, title="Delete Vector", text="delete vector cleanup")
 
@@ -32,8 +32,8 @@ def test_source_deletion_removes_embeddings(db_session):
 
 
 def test_vector_search_finds_semantic_match_without_keyword_overlap(db_session):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.retrieval.vector import vector_search
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.retrieval.vector import vector_search
 
     cat_source = add_text_source(db_session, title="Cat Note", text="cats chase mice and sleep in sunbeams")
     add_text_source(db_session, title="Budget Note", text="quarterly invoices require careful bookkeeping")
@@ -47,8 +47,8 @@ def test_vector_search_finds_semantic_match_without_keyword_overlap(db_session):
 
 
 def test_hybrid_search_combines_keyword_and_vector_results(db_session):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.retrieval.hybrid import hybrid_search
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.retrieval.hybrid import hybrid_search
 
     cat_source = add_text_source(db_session, title="Cat Note", text="cats chase mice and sleep in sunbeams")
     dog_source = add_text_source(db_session, title="Dog Note", text="dogs enjoy parks and fetch tennis balls")

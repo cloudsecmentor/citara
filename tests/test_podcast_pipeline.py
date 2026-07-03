@@ -165,8 +165,8 @@ def test_make_segments_from_plain_text_approximates_timestamps():
 def test_state_paths_are_namespaced_by_slug(tmp_path):
     paths = podcast_pipeline.paths_for_slug("A Book Like No Other", base_dir=tmp_path)
 
-    assert paths["state"] == tmp_path / "hkb" / "import-state" / "a-book-like-no-other_pipeline_state.json"
-    assert paths["artifact_dir"] == tmp_path / "hkb" / "source-artifacts" / "a-book-like-no-other"
+    assert paths["state"] == tmp_path / "citara" / "import-state" / "a-book-like-no-other_pipeline_state.json"
+    assert paths["artifact_dir"] == tmp_path / "citara" / "source-artifacts" / "a-book-like-no-other"
 
 
 def test_configured_bibleproject_connector_extracts_transcript_links():
@@ -191,7 +191,7 @@ def test_configured_bema_connector_preserves_episode_metadata():
 
 
 def test_load_config_or_url_resolves_named_source_from_config_file(tmp_path):
-    config_path = tmp_path / "hkb.sources.json"
+    config_path = tmp_path / "citara.sources.json"
     config_path.write_text(
         json.dumps(
             {
@@ -217,7 +217,7 @@ def test_load_config_or_url_resolves_named_source_from_config_file(tmp_path):
 
 
 def test_load_config_or_url_treats_unknown_value_as_direct_url(tmp_path):
-    config_path = tmp_path / "hkb.sources.json"
+    config_path = tmp_path / "citara.sources.json"
     config_path.write_text(json.dumps({"sources": []}))
 
     config = podcast_pipeline.load_config_or_url("https://example.com/feed.rss", config_path=config_path)
@@ -228,7 +228,7 @@ def test_load_config_or_url_treats_unknown_value_as_direct_url(tmp_path):
 def test_parser_supports_config_driven_source_names_and_config_path():
     args = podcast_pipeline.build_parser().parse_args([
         "--config",
-        "hkb.sources.json",
+        "citara.sources.json",
         "transcribe-missing",
         "bema",
         "--limit",
@@ -237,7 +237,7 @@ def test_parser_supports_config_driven_source_names_and_config_path():
         "small",
     ])
 
-    assert args.config == "hkb.sources.json"
+    assert args.config == "citara.sources.json"
     assert args.command == "transcribe-missing"
     assert args.input == "bema"
     assert args.limit == 2

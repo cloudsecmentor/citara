@@ -2,9 +2,9 @@ from __future__ import annotations
 
 
 def test_source_retrieval_weight_prefers_current_when_text_matches(db_session):
-    from hermes_knowledge.core.ingestion.text import add_text_source
-    from hermes_knowledge.core.retrieval.keyword import search_knowledge
-    from hermes_knowledge.core.sources import set_source_preference
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.retrieval.keyword import search_knowledge
+    from citara.core.sources import set_source_preference
 
     legacy = add_text_source(db_session, title="BEMA Legacy", text="shared crossroads idea")
     current = add_text_source(db_session, title="BEMA Current", text="shared crossroads idea")
@@ -20,7 +20,7 @@ def test_source_retrieval_weight_prefers_current_when_text_matches(db_session):
 def test_api_can_set_source_preference_weight():
     from fastapi.testclient import TestClient
 
-    from hermes_knowledge.adapters.api.main import create_app
+    from citara.adapters.api.main import create_app
 
     with TestClient(create_app()) as client:
         response = client.post("/sources/text", json={"title": "Preference Note", "text": "weighted preference text"})

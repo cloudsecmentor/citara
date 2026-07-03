@@ -11,21 +11,21 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "data"
-DEFAULT_HKB = (REPO / ".." / "hkb").resolve()
-ARTIFACT_ROOT = Path(os.getenv("SOURCE_ARTIFACT_ROOT", str(DEFAULT_HKB / "source-artifacts"))).expanduser().resolve()
-STATE_ROOT = Path(os.getenv("SOURCE_STATE_ROOT", str(DEFAULT_HKB / "import-state"))).expanduser().resolve()
-HKB = ARTIFACT_ROOT.parent if ARTIFACT_ROOT.name == "source-artifacts" else ARTIFACT_ROOT
-MANIFEST_PATH = HKB / "organization-manifest.json"
+DEFAULT_CITARA = (REPO / ".." / "citara").resolve()
+ARTIFACT_ROOT = Path(os.getenv("SOURCE_ARTIFACT_ROOT", str(DEFAULT_CITARA / "source-artifacts"))).expanduser().resolve()
+STATE_ROOT = Path(os.getenv("SOURCE_STATE_ROOT", str(DEFAULT_CITARA / "import-state"))).expanduser().resolve()
+Citara = ARTIFACT_ROOT.parent if ARTIFACT_ROOT.name == "source-artifacts" else ARTIFACT_ROOT
+MANIFEST_PATH = Citara / "organization-manifest.json"
 
 
 def configure_paths(*, repo: Path, artifact_root: Path, state_root: Path) -> None:
-    global REPO, DATA, ARTIFACT_ROOT, STATE_ROOT, HKB, MANIFEST_PATH
+    global REPO, DATA, ARTIFACT_ROOT, STATE_ROOT, Citara, MANIFEST_PATH
     REPO = repo.resolve()
     DATA = REPO / "data"
     ARTIFACT_ROOT = artifact_root.expanduser().resolve()
     STATE_ROOT = state_root.expanduser().resolve()
-    HKB = ARTIFACT_ROOT.parent if ARTIFACT_ROOT.name == "source-artifacts" else ARTIFACT_ROOT
-    MANIFEST_PATH = HKB / "organization-manifest.json"
+    Citara = ARTIFACT_ROOT.parent if ARTIFACT_ROOT.name == "source-artifacts" else ARTIFACT_ROOT
+    MANIFEST_PATH = Citara / "organization-manifest.json"
 
 
 def slugify(value: str, max_len: int = 120) -> str:
@@ -67,7 +67,7 @@ def relative_to_repo(path: Path) -> str:
 
 def normalized_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return {
-        "schema": "hkb.transcript.normalized.v1",
+        "schema": "citara.transcript.normalized.v1",
         "language": payload.get("language") or payload.get("metadata", {}).get("language") or "en",
         "segments": [
             {
@@ -93,7 +93,7 @@ def tree_meta(slug: str, title: str, tree_type: str, source_path: str | None = N
     write_json(
         target,
         {
-            "schema": "hkb.source_tree.v1",
+            "schema": "citara.source_tree.v1",
             "source_tree_slug": slug,
             "source_tree_type": tree_type,
             "title": title,
@@ -135,7 +135,7 @@ def source_item_metadata(
 ) -> dict[str, Any]:
     title = payload.get("episode_title") or payload.get("title") or src.stem
     metadata = {
-        "schema": "hkb.source_item.v1",
+        "schema": "citara.source_item.v1",
         "source_tree_slug": tree_slug,
         "source_tree_type": tree_type,
         "item_id": item_slug,
@@ -257,7 +257,7 @@ def organize_bema_pages() -> list[dict[str, Any]]:
             write_json(
                 source_json,
                 {
-                    "schema": "hkb.source_item.v1",
+                    "schema": "citara.source_item.v1",
                     "source_tree_slug": "bema",
                     "source_tree_type": "podcast",
                     "item_id": item_slug,
@@ -361,10 +361,10 @@ def organize_states() -> list[dict[str, Any]]:
 
 def build_summary(records: list[dict[str, Any]], state_records: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {
-        "schema": "hkb.organization_manifest.v1",
+        "schema": "citara.organization_manifest.v1",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "repo": str(REPO),
-        "hkb_root": str(HKB),
+        "citara_root": str(Citara),
         "source_artifact_root": str(ARTIFACT_ROOT),
         "source_state_root": str(STATE_ROOT),
         "artifact_count": len(records),
@@ -398,7 +398,7 @@ def organize_all(*, repo: Path = REPO, artifact_root: Path = ARTIFACT_ROOT, stat
 
 def main() -> None:
     summary = organize_all(repo=REPO, artifact_root=ARTIFACT_ROOT, state_root=STATE_ROOT)
-    print(json.dumps({k: summary[k] for k in ["hkb_root", "artifact_count", "state_count", "artifact_counts_by_tree", "artifact_counts_by_kind"]}, indent=2))
+    print(json.dumps({k: summary[k] for k in ["citara_root", "artifact_count", "state_count", "artifact_counts_by_tree", "artifact_counts_by_kind"]}, indent=2))
 
 
 if __name__ == "__main__":

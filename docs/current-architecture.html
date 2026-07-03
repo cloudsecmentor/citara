@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hermes Knowledge Vault — Current Architecture</title>
+  <title>Citara — Current Architecture</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
     :root { --bg:#020617; --panel:#0f172a; --text:#e2e8f0; --muted:#94a3b8; --grid:#1e293b; }
@@ -26,11 +26,11 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="header"><div class="pulse"></div><h1>Hermes Knowledge Vault — Current Architecture</h1></div>
+    <div class="header"><div class="pulse"></div><h1>Citara — Current Architecture</h1></div>
     <p class="subtitle">State after the first working vertical slice: text/transcript fixtures, search, context packs, FastAPI, MCP tools, Docker, Postgres, and Alembic.</p>
 
     <div class="diagram-card">
-      <svg viewBox="0 0 1220 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hermes Knowledge Vault current architecture diagram">
+      <svg viewBox="0 0 1220 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Citara current architecture diagram">
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
           <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/></marker>
@@ -61,7 +61,7 @@
 
         <!-- external users -->
         <rect x="50" y="105" width="130" height="80" rx="6" class="box-bg"/><rect x="50" y="105" width="130" height="80" rx="6" class="external stroke"/>
-        <text x="73" y="137" class="label">Hermes Agent</text><text x="72" y="156" class="small">primary user</text><text x="72" y="170" class="small">via MCP tools</text>
+        <text x="73" y="137" class="label">AI Agent</text><text x="72" y="156" class="small">primary client</text><text x="72" y="170" class="small">via MCP tools</text>
         <rect x="50" y="205" width="130" height="80" rx="6" class="box-bg"/><rect x="50" y="205" width="130" height="80" rx="6" class="external stroke"/>
         <text x="72" y="237" class="label">Developer/User</text><text x="72" y="256" class="small">curl / browser</text><text x="72" y="270" class="small">FastAPI</text>
 
@@ -112,7 +112,7 @@
       <div class="card"><h3>Current runtime</h3><ul><li>• Docker Compose: api + postgres</li><li>• API listens on localhost:8000</li><li>• Postgres schema managed by Alembic</li><li>• Smoke test passed through Docker</li></ul></div>
       <div class="card"><h3>Next likely work</h3><ul><li>• Source deletion + cleanup</li><li>• Real MCP stdio entrypoint</li><li>• Transcript API/MCP endpoint</li><li>• Job records/status endpoints</li></ul></div>
     </div>
-    <div class="footer">Generated for Hermes Knowledge Vault current architecture.</div>
+    <div class="footer">Generated for Citara current architecture.</div>
   </div>
 </body>
 </html>

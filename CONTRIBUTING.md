@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in Hermes Knowledge Vault.
+Thank you for your interest in Citara.
 
 This project is source-available under the PolyForm Noncommercial License 1.0.0. By contributing, you agree that your contribution may be distributed under the project license and any future commercial licenses granted by the maintainer.
 

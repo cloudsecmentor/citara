@@ -1,8 +1,15 @@
-# PRD: Hermes Knowledge Vault
+# PRD: Citara
+
+> Historical note: This is the original vision document, written when the project was called
+> "Hermes Knowledge Vault" and assumed a specific personal agent named "Hermes" as the primary
+> frontend. The project has since been renamed **Citara** and generalized to be **agent-agnostic**:
+> wherever this document says "Hermes", read it as "the user's AI agent" (Claude, Cursor, or any
+> MCP client). The design intent is unchanged. Also note the current license is source-available
+> (PolyForm Noncommercial), not OSI open source, despite the wording below.
 
 ## 1. Product summary
 
-Hermes Knowledge Vault is an open-source, personal-first knowledge system for storing, indexing, searching, and citing a user’s private knowledge.
+Citara is a personal-first knowledge system for storing, indexing, searching, and citing a user’s private knowledge.
 
 The primary frontend is not a traditional web app. The primary frontend is a personal agent, called Hermes, which interacts with the system through MCP tools. A lightweight web UI should still exist for testing, debugging, uploads, reviewing sources, inspecting ingestion jobs, and experimenting with retrieval quality.
 
@@ -242,7 +249,7 @@ Do not duplicate logic between FastAPI and FastMCP.
 Use a core Python package with thin adapters.
 
 ```text
-hermes_knowledge/
+citara/
   core/
     ingestion/
     extraction/
