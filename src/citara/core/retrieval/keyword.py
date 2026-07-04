@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from citara.core.chunking.simple import tokenize
 from citara.core.config import settings
-from citara.core.models import Chunk, Source
+from citara.core.entities import resolve_entity_ids
+from citara.core.models import Chunk, Source, SourceEntity
 
 
 @dataclass(frozen=True)
@@ -65,16 +66,28 @@ def search_knowledge(
     query: str,
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
+    entity_slugs: list[str] | None = None,
 ) -> list[SearchResult]:
     query_tokens = tokenize(query)
     if not query_tokens:
         return []
 
-    rows = session.execute(
+    statement = (
         select(Chunk, Source)
         .join(Source, Chunk.source_id == Source.id)
         .where(Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
-    ).all()
+    )
+    if entity_slugs:
+        entity_ids = resolve_entity_ids(session, entity_slugs=entity_slugs, tenant_id=tenant_id)
+        if not entity_ids:
+            return []
+        source_ids = select(SourceEntity.source_id).where(
+            SourceEntity.tenant_id == tenant_id,
+            SourceEntity.entity_id.in_(entity_ids),
+        )
+        statement = statement.where(Chunk.source_id.in_(source_ids))
+
+    rows = session.execute(statement).all()
 
     scored: list[tuple[float, Source, Chunk]] = []
     for chunk, source in rows:

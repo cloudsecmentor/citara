@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from citara.core.db import SessionLocal, init_db
+from citara.core.entities import list_entities as core_list_entities
+from citara.core.entities import list_source_entities as core_list_source_entities
 from citara.core.ingestion.text import add_text_source as core_add_text_source
 from citara.core.ingestion.transcript import add_transcript_source as core_add_transcript_source
 from citara.core.jobs import get_ingestion_job as core_get_ingestion_job
@@ -58,7 +60,7 @@ def create_mcp_server() -> FastMCP:
             return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
 
     @server.tool()
-    def search_knowledge(query: str, limit: int = 10, mode: str = "hybrid") -> dict:
+    def search_knowledge(query: str, limit: int = 10, mode: str = "hybrid", entity_slugs: list[str] | None = None) -> dict:
         init_db()
         with SessionLocal() as session:
             return {
@@ -73,15 +75,27 @@ def create_mcp_server() -> FastMCP:
                         "timestamp_url": result.timestamp_url,
                         "score": result.score,
                     }
-                    for result in core_search_by_mode(session, query=query, limit=limit, mode=mode)
+                    for result in core_search_by_mode(session, query=query, limit=limit, mode=mode, entity_slugs=entity_slugs)
                 ]
             }
 
     @server.tool()
-    def retrieve_context_pack(query: str, limit: int = 8, mode: str = "hybrid") -> dict:
+    def retrieve_context_pack(query: str, limit: int = 8, mode: str = "hybrid", entity_slugs: list[str] | None = None) -> dict:
         init_db()
         with SessionLocal() as session:
-            return core_retrieve_context_pack(session, query=query, limit=limit, mode=mode)
+            return core_retrieve_context_pack(session, query=query, limit=limit, mode=mode, entity_slugs=entity_slugs)
+
+    @server.tool()
+    def list_entities() -> dict:
+        init_db()
+        with SessionLocal() as session:
+            return {"entities": core_list_entities(session)}
+
+    @server.tool()
+    def get_source_entities(source_id: str) -> dict:
+        init_db()
+        with SessionLocal() as session:
+            return {"source_id": source_id, "entities": core_list_source_entities(session, source_id)}
 
     @server.tool()
     def resolve_source(query: str, preference: str = "current") -> dict:

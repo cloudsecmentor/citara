@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from citara.core.db import get_session, init_db
+from citara.core.entities import list_entities, list_source_entities
 from citara.core.ingestion.text import add_text_source
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.jobs import get_ingestion_job, list_ingestion_jobs, list_ingestion_jobs_for_source, serialize_ingestion_job
@@ -153,9 +154,10 @@ def create_app() -> FastAPI:
         return {"source_id": source.id, "metadata": source.metadata_json}
 
     @app.get("/search")
-    def search(q: str, limit: int = 10, mode: str = "hybrid", session: Session = Depends(get_session)) -> dict:
+    def search(q: str, limit: int = 10, mode: str = "hybrid", entity: str | None = None, session: Session = Depends(get_session)) -> dict:
+        entity_slugs = [part.strip() for part in entity.split(",") if part.strip()] if entity else None
         try:
-            results = search_by_mode(session, query=q, limit=limit, mode=mode)
+            results = search_by_mode(session, query=q, limit=limit, mode=mode, entity_slugs=entity_slugs)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {
@@ -178,11 +180,20 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/context-pack")
-    def context_pack(q: str, limit: int = 8, mode: str = "hybrid", session: Session = Depends(get_session)) -> dict:
+    def context_pack(q: str, limit: int = 8, mode: str = "hybrid", entity: str | None = None, session: Session = Depends(get_session)) -> dict:
+        entity_slugs = [part.strip() for part in entity.split(",") if part.strip()] if entity else None
         try:
-            return retrieve_context_pack(session, query=q, limit=limit, mode=mode)
+            return retrieve_context_pack(session, query=q, limit=limit, mode=mode, entity_slugs=entity_slugs)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/entities")
+    def entities(session: Session = Depends(get_session)) -> dict:
+        return {"entities": list_entities(session)}
+
+    @app.get("/sources/{source_id}/entities")
+    def source_entities(source_id: str, session: Session = Depends(get_session)) -> dict:
+        return {"source_id": source_id, "entities": list_source_entities(session, source_id)}
 
     return app
 

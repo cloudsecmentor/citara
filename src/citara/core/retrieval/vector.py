@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from citara.core.config import settings
 from citara.core.embeddings.service import embed_query
-from citara.core.models import Chunk, Embedding, Source
+from citara.core.entities import resolve_entity_ids
+from citara.core.models import Chunk, Embedding, Source, SourceEntity
 from citara.core.retrieval.keyword import SearchResult, _citation_label, _source_weight, _timestamp_url
 
 
@@ -26,14 +27,25 @@ def vector_search(
     query: str,
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
+    entity_slugs: list[str] | None = None,
 ) -> list[SearchResult]:
     query_vector = embed_query(query)
-    rows = session.execute(
+    statement = (
         select(Embedding, Chunk, Source)
         .join(Chunk, Embedding.chunk_id == Chunk.id)
         .join(Source, Chunk.source_id == Source.id)
         .where(Embedding.tenant_id == tenant_id, Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
-    ).all()
+    )
+    if entity_slugs:
+        entity_ids = resolve_entity_ids(session, entity_slugs=entity_slugs, tenant_id=tenant_id)
+        if not entity_ids:
+            return []
+        source_ids = select(SourceEntity.source_id).where(
+            SourceEntity.tenant_id == tenant_id,
+            SourceEntity.entity_id.in_(entity_ids),
+        )
+        statement = statement.where(Chunk.source_id.in_(source_ids))
+    rows = session.execute(statement).all()
 
     scored: list[tuple[float, Source, Chunk]] = []
     for embedding, chunk, source in rows:

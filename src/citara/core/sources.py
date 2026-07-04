@@ -4,7 +4,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from citara.core.config import settings
-from citara.core.models import Chunk, Embedding, IngestionJob, Source, TranscriptSegment
+from citara.core.models import Chunk, Embedding, IngestionJob, Source, SourceEntity, TranscriptSegment
 
 
 def list_sources(session: Session, *, tenant_id: str = settings.default_tenant_id, limit: int = 50) -> list[Source]:
@@ -54,6 +54,7 @@ def delete_source(session: Session, source_id: str, *, tenant_id: str = settings
         return False
 
     session.execute(delete(Embedding).where(Embedding.tenant_id == tenant_id, Embedding.source_id == source_id))
+    session.execute(delete(SourceEntity).where(SourceEntity.tenant_id == tenant_id, SourceEntity.source_id == source_id))
     session.execute(delete(Chunk).where(Chunk.tenant_id == tenant_id, Chunk.source_id == source_id))
     session.execute(
         delete(TranscriptSegment).where(

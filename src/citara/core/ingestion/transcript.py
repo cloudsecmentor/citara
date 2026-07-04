@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from citara.core.config import settings
 from citara.core.embeddings.service import embed_chunks
+from citara.core.entities import attach_source_entities
 from citara.core.jobs import record_succeeded_ingestion_job
 from citara.core.models import Chunk, Source, TranscriptSegment
 from citara.core.tenants import ensure_local_identity
@@ -37,6 +38,7 @@ def add_transcript_source(
     )
     session.add(source)
     session.flush()
+    attach_source_entities(session, source_id=source.id, entities=payload.get("entities"), tenant_id=tenant_id)
 
     chunks = []
     for index, segment_payload in enumerate(payload.get("segments", []), start=1):
@@ -48,7 +50,7 @@ def add_transcript_source(
             end_ms=segment_payload.get("end_ms"),
             speaker=segment_payload.get("speaker"),
             text=segment_payload["text"],
-            metadata_json={},
+            metadata_json=segment_payload.get("metadata_json", {}),
         )
         session.add(segment)
         session.flush()
@@ -61,7 +63,7 @@ def add_transcript_source(
             text=segment.text,
             start_ms=segment.start_ms,
             end_ms=segment.end_ms,
-            metadata_json={},
+            metadata_json=segment_payload.get("metadata_json", {}),
         )
         session.add(chunk)
         chunks.append(chunk)

@@ -268,6 +268,31 @@ uv run python scripts/podcast_pipeline.py --config citara.sources.json transcrib
 
 Connectors are sequential and resumable. They store state under `SOURCE_STATE_ROOT` and artifacts under `SOURCE_ARTIFACT_ROOT`, which default to sibling `../citara/import-state` and `../citara/source-artifacts` outside the automation repo. If stopped, rerun the same command and it continues from the first unfinished episode.
 
+### BEMA remote transcription artifacts
+
+For remote-worker BEMA transcription, download the episode audio locally first, upload/stage the MP3 to the worker, transcribe on the worker, copy JSON artifacts back, and delete worker audio. This avoids worker-side media download stalls while keeping CPU-heavy transcription off the Mac.
+
+The durable generated-transcript artifacts intentionally match the existing BEMA OpenAI layout under `../citara-data/source-artifacts/bema/remote-openai/`:
+
+```text
+e365-oai-raw.json          # provider-like raw Whisper output with fine segments
+e365-oai-raw-chunked.json  # sentence-aware ~1.8k-char import chunks with overlap + metadata.start/episode/url
+e365-transcribe-stats.json # timing/throughput stats from the worker
+```
+
+Do **not** make `*-oai-raw-chunked.json` one entry per Whisper segment. Keep raw Whisper segments in `*-oai-raw.json`; use the chunked file for Citara DB import/retrieval chunks so DB chunks are larger semantic passages with timestamp starts. Chunked artifacts should prefer sentence/segment boundaries and include a small overlap from the previous chunk; `metadata.start` should still point to the first non-overlap segment for citation accuracy.
+
+```bash
+uv run python scripts/transcribe_bema_remote_batch.py --start 365 --end 365
+uv run python scripts/import_bema_artifacts.py \
+  --skip-published-pages \
+  --rewrite-openai-chunked \
+  --rewrite-start 365 \
+  --rewrite-end 365 \
+  --replace-generated-openai \
+  --openai-raw ../citara/source-artifacts/bema/remote-openai
+```
+
 For deployments where the API container is used but source provenance should be written directly to Postgres, provide `DATABASE_URL`. It will best-effort annotate imported sources with transcript URL, episode GUID, duration, and transcript provenance metadata.
 
 Podcast citations include clickable timestamp links when a chunk has `start_ms` and the source has `canonical_url`:
@@ -277,6 +302,38 @@ https://www.bemadiscipleship.com/35?t=360
 ```
 
 For transcripts without native timing, approximate timestamps can be generated proportionally to character position in the transcript.
+
+## Source entities: people and organizations only
+
+Citara has a deliberately small explicit relationship layer:
+
+```text
+entities          # canonical person/organization rows
+entity_aliases    # spelling/name aliases such as "Tim Mackey" -> tim-mackie
+source_entities   # source-level links: source -> person/org with a role
+```
+
+The structured boundary is intentional: **only people and organizations are modeled as entities**. Topics, themes, scripture references, theology concepts, and series-level ideas remain in transcript text and are handled by keyword/vector/hybrid retrieval rather than graph tables.
+
+Import payloads may include source-level entities:
+
+```json
+{
+  "entities": [
+    {"type": "organization", "slug": "bema-discipleship", "label": "BEMA Discipleship", "role": "publisher"},
+    {"type": "person", "slug": "marty-solomon", "label": "Marty Solomon", "role": "host"}
+  ]
+}
+```
+
+Search and context-pack calls can use entity filters while the query text remains thematic:
+
+```bash
+curl 'http://127.0.0.1:8000/search?q=Sabbath%20rest&entity=person:marty-solomon'
+curl 'http://127.0.0.1:8000/context-pack?q=exile&entity=organization:bema-discipleship'
+```
+
+MCP tools accept the same `entity_slugs` list, for example `entity_slugs=["person:marty-solomon"]`, and expose `list_entities` plus `get_source_entities` for discovery/provenance.
 
 ## Source preferences and retrieval weights
 
