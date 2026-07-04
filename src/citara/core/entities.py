@@ -79,8 +79,12 @@ def resolve_or_create_entity(
     elif entity.entity_type != entity_type:
         raise ValueError(f"Entity slug {slug!r} already exists as {entity.entity_type}, not {entity_type}")
 
+    seen_aliases: set[str] = set()
     for alias in [label, *(aliases or [])]:
         alias = str(alias).strip()
+        if alias in seen_aliases:
+            continue
+        seen_aliases.add(alias)
         if not alias:
             continue
         existing_alias = session.execute(
