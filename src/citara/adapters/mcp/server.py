@@ -60,7 +60,14 @@ def create_mcp_server() -> FastMCP:
             return {"source_id": source.id, "status": source.status, "job_id": jobs[0].id if jobs else None}
 
     @server.tool()
-    def search_knowledge(query: str, limit: int = 10, mode: str = "hybrid", entity_slugs: list[str] | None = None) -> dict:
+    def search_knowledge(
+        query: str,
+        limit: int = 10,
+        mode: str = "hybrid",
+        entity_slugs: list[str] | None = None,
+        language_policy: str = "auto",
+        language: str | None = None,
+    ) -> dict:
         init_db()
         with SessionLocal() as session:
             return {
@@ -75,15 +82,38 @@ def create_mcp_server() -> FastMCP:
                         "timestamp_url": result.timestamp_url,
                         "score": result.score,
                     }
-                    for result in core_search_by_mode(session, query=query, limit=limit, mode=mode, entity_slugs=entity_slugs)
+                    for result in core_search_by_mode(
+                        session,
+                        query=query,
+                        limit=limit,
+                        mode=mode,
+                        entity_slugs=entity_slugs,
+                        language_policy=language_policy,
+                        language=language,
+                    )
                 ]
             }
 
     @server.tool()
-    def retrieve_context_pack(query: str, limit: int = 8, mode: str = "hybrid", entity_slugs: list[str] | None = None) -> dict:
+    def retrieve_context_pack(
+        query: str,
+        limit: int = 8,
+        mode: str = "hybrid",
+        entity_slugs: list[str] | None = None,
+        language_policy: str = "auto",
+        language: str | None = None,
+    ) -> dict:
         init_db()
         with SessionLocal() as session:
-            return core_retrieve_context_pack(session, query=query, limit=limit, mode=mode, entity_slugs=entity_slugs)
+            return core_retrieve_context_pack(
+                session,
+                query=query,
+                limit=limit,
+                mode=mode,
+                entity_slugs=entity_slugs,
+                language_policy=language_policy,
+                language=language,
+            )
 
     @server.tool()
     def list_entities() -> dict:

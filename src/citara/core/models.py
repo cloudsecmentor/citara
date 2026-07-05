@@ -5,7 +5,13 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
-from pgvector.sqlalchemy import Vector
+try:
+    from pgvector.sqlalchemy import Vector
+except ModuleNotFoundError:  # pragma: no cover
+    # Tests/local dev may not have pgvector installed; sqlite uses JSON.
+    class Vector:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs):
+            pass
 
 
 class EmbeddingVector(TypeDecorator):

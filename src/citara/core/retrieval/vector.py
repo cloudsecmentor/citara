@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from citara.core.config import settings
@@ -28,14 +28,27 @@ def vector_search(
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
     entity_slugs: list[str] | None = None,
+    source_language: str | None = None,
+    include_und: bool = False,
 ) -> list[SearchResult]:
     query_vector = embed_query(query)
     statement = (
         select(Embedding, Chunk, Source)
         .join(Chunk, Embedding.chunk_id == Chunk.id)
         .join(Source, Chunk.source_id == Source.id)
-        .where(Embedding.tenant_id == tenant_id, Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
+        .where(
+            Embedding.tenant_id == tenant_id,
+            Chunk.tenant_id == tenant_id,
+            Source.tenant_id == tenant_id,
+        )
     )
+    if source_language:
+        if include_und:
+            statement = statement.where(
+                or_(Source.language == source_language, Source.language.is_(None))
+            )
+        else:
+            statement = statement.where(Source.language == source_language)
     if entity_slugs:
         entity_ids = resolve_entity_ids(session, entity_slugs=entity_slugs, tenant_id=tenant_id)
         if not entity_ids:

@@ -8,6 +8,7 @@ from citara.core.config import settings
 from citara.core.embeddings.service import embed_chunks
 from citara.core.entities import attach_source_entities
 from citara.core.jobs import record_succeeded_ingestion_job
+from citara.core.language.detect import detect_language_code
 from citara.core.models import Chunk, Source, TranscriptSegment
 from citara.core.tenants import ensure_local_identity
 
@@ -24,6 +25,16 @@ def add_transcript_source(
     show_title = payload["show_title"]
     episode_title = payload["episode_title"]
     episode_url = payload.get("episode_url")
+
+    # Best-effort language detection: prefer explicit payload language, else
+    # infer from concatenated segment texts.
+    if "language" in payload and payload.get("language"):
+        source_language = str(payload["language"]).strip()
+    else:
+        joined = "\n".join(seg.get("text", "") for seg in payload.get("segments", []) if isinstance(seg, dict))
+        detected_language, language_confidence = detect_language_code(joined)
+        source_language = detected_language if (detected_language and language_confidence >= 0.4) else None
+
     source = Source(
         id=f"src_{uuid4().hex}",
         tenant_id=tenant_id,
@@ -34,6 +45,7 @@ def add_transcript_source(
         canonical_url=episode_url,
         provider="podcast",
         status="succeeded",
+        language=source_language,
         metadata_json={"show_title": show_title, "input_type": "transcript_fixture"},
     )
     session.add(source)
@@ -79,7 +91,8 @@ def add_transcript_source(
         input_json={"show_title": show_title, "episode_title": episode_title, "collection_id": collection_id},
         result_json={"source_id": source.id, "segment_count": len(chunks), "chunk_count": len(chunks)},
     )
-
     session.commit()
     session.refresh(source)
     return source
+
+

@@ -8,6 +8,7 @@ from citara.core.chunking.simple import chunk_text
 from citara.core.config import settings
 from citara.core.embeddings.service import embed_chunks
 from citara.core.jobs import record_succeeded_ingestion_job
+from citara.core.language.detect import detect_language_code
 from citara.core.models import Chunk, Source
 from citara.core.tenants import ensure_local_identity
 
@@ -22,6 +23,13 @@ def add_text_source(
     user_id: str = settings.default_user_id,
 ) -> Source:
     ensure_local_identity(session, tenant_id=tenant_id, user_id=user_id)
+
+    detected_language, language_confidence = detect_language_code(text)
+
+    # Store language on the Source so retrieval can filter by it.
+    # If detection is uncertain, keep NULL.
+    source_language = detected_language if (detected_language and language_confidence >= 0.4) else None
+
     source = Source(
         id=f"src_{uuid4().hex}",
         tenant_id=tenant_id,
@@ -30,6 +38,7 @@ def add_text_source(
         source_type="text_note",
         title=title,
         status="succeeded",
+        language=source_language,
         metadata_json={"input_type": "text"},
     )
     session.add(source)

@@ -13,15 +13,33 @@ def hybrid_search(
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
     entity_slugs: list[str] | None = None,
+    source_language: str | None = None,
+    include_und: bool = False,
 ) -> list[SearchResult]:
     merged: dict[str, SearchResult] = {}
     scores: dict[str, float] = {}
 
-    for result in search_knowledge(session, query=query, limit=limit * 2, tenant_id=tenant_id, entity_slugs=entity_slugs):
+    for result in search_knowledge(
+        session,
+        query=query,
+        limit=limit * 2,
+        tenant_id=tenant_id,
+        entity_slugs=entity_slugs,
+        source_language=source_language,
+        include_und=include_und,
+    ):
         merged[result.chunk_id] = result
         scores[result.chunk_id] = scores.get(result.chunk_id, 0.0) + result.score
 
-    for result in vector_search(session, query=query, limit=limit * 2, tenant_id=tenant_id, entity_slugs=entity_slugs):
+    for result in vector_search(
+        session,
+        query=query,
+        limit=limit * 2,
+        tenant_id=tenant_id,
+        entity_slugs=entity_slugs,
+        source_language=source_language,
+        include_und=include_und,
+    ):
         merged.setdefault(result.chunk_id, result)
         scores[result.chunk_id] = scores.get(result.chunk_id, 0.0) + result.score
 

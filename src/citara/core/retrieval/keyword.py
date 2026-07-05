@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from citara.core.chunking.simple import tokenize
@@ -67,6 +67,8 @@ def search_knowledge(
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
     entity_slugs: list[str] | None = None,
+    source_language: str | None = None,
+    include_und: bool = False,
 ) -> list[SearchResult]:
     query_tokens = tokenize(query)
     if not query_tokens:
@@ -77,6 +79,13 @@ def search_knowledge(
         .join(Source, Chunk.source_id == Source.id)
         .where(Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
     )
+    if source_language:
+        if include_und:
+            statement = statement.where(
+                or_(Source.language == source_language, Source.language.is_(None))
+            )
+        else:
+            statement = statement.where(Source.language == source_language)
     if entity_slugs:
         entity_ids = resolve_entity_ids(session, entity_slugs=entity_slugs, tenant_id=tenant_id)
         if not entity_ids:

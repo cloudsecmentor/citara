@@ -154,10 +154,26 @@ def create_app() -> FastAPI:
         return {"source_id": source.id, "metadata": source.metadata_json}
 
     @app.get("/search")
-    def search(q: str, limit: int = 10, mode: str = "hybrid", entity: str | None = None, session: Session = Depends(get_session)) -> dict:
+    def search(
+        q: str,
+        limit: int = 10,
+        mode: str = "hybrid",
+        entity: str | None = None,
+        language_policy: str = "auto",
+        language: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> dict:
         entity_slugs = [part.strip() for part in entity.split(",") if part.strip()] if entity else None
         try:
-            results = search_by_mode(session, query=q, limit=limit, mode=mode, entity_slugs=entity_slugs)
+            results = search_by_mode(
+                session,
+                query=q,
+                limit=limit,
+                mode=mode,
+                entity_slugs=entity_slugs,
+                language_policy=language_policy,
+                language=language,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {
@@ -180,10 +196,26 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/context-pack")
-    def context_pack(q: str, limit: int = 8, mode: str = "hybrid", entity: str | None = None, session: Session = Depends(get_session)) -> dict:
+    def context_pack(
+        q: str,
+        limit: int = 8,
+        mode: str = "hybrid",
+        entity: str | None = None,
+        language_policy: str = "auto",
+        language: str | None = None,
+        session: Session = Depends(get_session),
+    ) -> dict:
         entity_slugs = [part.strip() for part in entity.split(",") if part.strip()] if entity else None
         try:
-            return retrieve_context_pack(session, query=q, limit=limit, mode=mode, entity_slugs=entity_slugs)
+            return retrieve_context_pack(
+                session,
+                query=q,
+                limit=limit,
+                mode=mode,
+                entity_slugs=entity_slugs,
+                language_policy=language_policy,
+                language=language,
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
