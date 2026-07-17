@@ -22,11 +22,6 @@ from sqlalchemy import delete, select
 
 DEFAULT_CITARA_ROOT = Path("../citara")
 DEFAULT_OPENAI_RAW = Path("../citara-data/source-artifacts/bema/remote-openai")
-BEMA_ENTITIES = [
-    {"type": "organization", "slug": "bema-discipleship", "label": "BEMA Discipleship", "role": "publisher", "provenance": "source_config", "aliases": ["BEMA", "BEMA Podcast", "The BEMA Podcast"]},
-    {"type": "person", "slug": "marty-solomon", "label": "Marty Solomon", "role": "host", "provenance": "source_config"},
-    {"type": "person", "slug": "brent-billings", "label": "Brent Billings", "role": "host", "provenance": "source_config"},
-]
 
 # Ensure direct script runs use the renamed sibling data folder even when no .env is loaded.
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{DEFAULT_CITARA_ROOT / 'citara.db'}")
@@ -44,6 +39,7 @@ from citara.connectors.podcasts.bema import (
 from citara.core.db import SessionLocal, init_db
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.models import Chunk, Embedding, IngestionJob, Source, SourceEntity, TranscriptSegment
+from citara.core.source_taxonomy import BEMA_ENTITIES
 
 
 def slugify(value: str, *, max_len: int = 120) -> str:
@@ -187,7 +183,15 @@ def build_legacy_chunked_from_raw(
 ) -> list[dict[str, Any]]:
     """Build sentence-aware BEMA_az-style chunked JSON from raw Whisper segments."""
     units = [
-        {"text": text, "start": float(segment.get("start") or 0.0)}
+        {
+            "text": text,
+            "start": float(segment.get("start") or 0.0),
+            "word_start": (
+                float((segment.get("words") or [])[0].get("start") or 0.0)
+                if (segment.get("words") or [])
+                else None
+            ),
+        }
         for segment in (raw_doc.get("segments") or [])
         if (text := _clean_text(segment.get("text")))
     ]
@@ -197,12 +201,14 @@ def build_legacy_chunked_from_raw(
         primary_end = _choose_chunk_end(units, primary_start, target_chars=target_chars, max_chars=max_chars)
         overlap_start = _overlap_start(units, primary_start, overlap_chars=overlap_chars)
         chunk_units = units[overlap_start:primary_end]
-        primary_start_seconds = int(float(units[primary_start]["start"]))
+        word_start = units[primary_start].get("word_start")
+        anchor_seconds = word_start if word_start is not None else units[primary_start]["start"]
+        primary_start_seconds = int(float(anchor_seconds))
         chunks.append(
             {
                 "text": " ".join(str(unit["text"]) for unit in chunk_units),
                 "metadata": {
-                    "start": format_mmss(float(units[primary_start]["start"])),
+                    "start": format_mmss(float(anchor_seconds)),
                     "episode": episode,
                     "url": f" {episode_url}?t={primary_start_seconds} ",
                     "overlap_chars": 0 if overlap_start == primary_start else sum(len(str(unit["text"])) + 1 for unit in units[overlap_start:primary_start]),

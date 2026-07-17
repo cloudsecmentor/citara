@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import email.utils
 import html
 import json
 import re
@@ -13,6 +14,7 @@ from typing import Any
 
 from citara.core.config import settings
 from citara.core.paths import source_artifact_root, source_state_root
+from citara.core.source_taxonomy import TEXTINUS_ENTITIES, TEXTINUS_SOURCE_TREE_SLUG
 
 DEFAULT_FEED_URL = "https://anchor.fm/s/7cd8d890/podcast/rss"
 DEFAULT_API_URL = "http://127.0.0.1:8000"
@@ -94,12 +96,25 @@ def parse_rss_items(rss_text: str) -> tuple[str, list[dict[str, Any]]]:
                 "description": description,
                 "duration": duration,
                 "duration_seconds": seconds_from_duration(duration),
+                "published": _item_text(item, "pubDate"),
                 "audio_url": _enclosure_url(item),
                 "transcript_url": None,
                 "transcript_urls": [],
             }
         )
     return show_title, items
+
+
+def episode_sort_key(episode: dict[str, Any]) -> tuple[str, str]:
+    try:
+        parsed = email.utils.parsedate_to_datetime(str(episode.get("published") or ""))
+        return (parsed.isoformat(), str(episode.get("guid") or episode.get("title") or ""))
+    except Exception:
+        return ("9999-12-31T23:59:59+00:00", str(episode.get("guid") or episode.get("title") or ""))
+
+
+def chronological_episodes(episodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [dict(episode, episode_number=index) for index, episode in enumerate(sorted(episodes, key=episode_sort_key), start=1)]
 
 
 def safe_filename(value: str, *, max_len: int = 120) -> str:
@@ -144,7 +159,7 @@ def discover(feed_url: str, state_path: Path) -> tuple[str, list[dict[str, Any]]
     state = load_state(state_path)
     state.update({"feed_url": feed_url, "show_title": show_title, "episode_count": len(episodes), "published_transcript_count": 0})
     state.setdefault("episodes", {})
-    for episode in episodes:
+    for episode in chronological_episodes(episodes):
         state["episodes"].setdefault(episode["guid"], {}).update({**episode, "has_published_transcript": False})
     save_state(state_path, state)
     return show_title, episodes
@@ -233,7 +248,23 @@ def transcribe_missing(episodes: list[dict[str, Any]], state_path: Path, artifac
             text_path.parent.mkdir(parents=True, exist_ok=True)
             text_path.write_text(text)
             title = f"Text in Us: {episode['title']} (Generated Transcript)"
-            payload = {"show_title": "Text in Us", "episode_title": title, "episode_url": episode["episode_url"], "segments": segments}
+            payload = {
+                "show_title": "Text in Us",
+                "episode_title": title,
+                "episode_url": episode["episode_url"],
+                "segments": segments,
+                "language": "en",
+                "entities": TEXTINUS_ENTITIES,
+                "metadata_json": {
+                    "source_tree_slug": TEXTINUS_SOURCE_TREE_SLUG,
+                    "source_tree_type": "podcast",
+                    "source_item_id": episode.get("guid"),
+                    "episode_guid": episode.get("guid"),
+                    "transcript_provenance": "generated_faster_whisper",
+                    "preference_label": "generated",
+                    "retrieval_weight": 0.9,
+                },
+            }
             response = post_json(f"{api_url.rstrip('/')}/sources/transcript", payload)
             patch_json(f"{api_url.rstrip('/')}/sources/{response['source_id']}/preference", {"retrieval_weight": 0.9, "preference_label": "generated"})
             result = {"source_title": title, "source_id": response["source_id"], "segments": len(segments), "audio_path": str(audio)}

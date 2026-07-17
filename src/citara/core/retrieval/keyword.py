@@ -67,6 +67,7 @@ def search_knowledge(
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
     entity_slugs: list[str] | None = None,
+    source_tree_slug: str | None = None,
     source_language: str | None = None,
     include_und: bool = False,
 ) -> list[SearchResult]:
@@ -86,6 +87,8 @@ def search_knowledge(
             )
         else:
             statement = statement.where(Source.language == source_language)
+    if source_tree_slug:
+        statement = statement.where(Source.metadata_json["source_tree_slug"].as_string() == source_tree_slug)
     if entity_slugs:
         entity_ids = resolve_entity_ids(session, entity_slugs=entity_slugs, tenant_id=tenant_id)
         if not entity_ids:

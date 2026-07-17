@@ -27,6 +27,7 @@ class TranscriptSegmentRequest(BaseModel):
     end_ms: int | None = None
     speaker: str | None = None
     text: str
+    metadata_json: dict | None = None
 
 
 class TranscriptSourceRequest(BaseModel):
@@ -35,6 +36,9 @@ class TranscriptSourceRequest(BaseModel):
     episode_url: str | None = None
     collection_id: str | None = None
     segments: list[TranscriptSegmentRequest]
+    entities: list[dict] | None = None
+    metadata_json: dict | None = None
+    language: str | None = None
 
 
 class SourcePreferenceRequest(BaseModel):
@@ -159,6 +163,7 @@ def create_app() -> FastAPI:
         limit: int = 10,
         mode: str = "hybrid",
         entity: str | None = None,
+        source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
         session: Session = Depends(get_session),
@@ -171,6 +176,7 @@ def create_app() -> FastAPI:
                 limit=limit,
                 mode=mode,
                 entity_slugs=entity_slugs,
+                source_tree_slug=source_tree_slug,
                 language_policy=language_policy,
                 language=language,
             )
@@ -201,6 +207,7 @@ def create_app() -> FastAPI:
         limit: int = 8,
         mode: str = "hybrid",
         entity: str | None = None,
+        source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
         session: Session = Depends(get_session),
@@ -213,6 +220,7 @@ def create_app() -> FastAPI:
                 limit=limit,
                 mode=mode,
                 entity_slugs=entity_slugs,
+                source_tree_slug=source_tree_slug,
                 language_policy=language_policy,
                 language=language,
             )

@@ -35,6 +35,12 @@ def add_transcript_source(
         detected_language, language_confidence = detect_language_code(joined)
         source_language = detected_language if (detected_language and language_confidence >= 0.4) else None
 
+    source_metadata = {
+        "show_title": show_title,
+        "input_type": "transcript_fixture",
+        **(payload.get("metadata_json") or payload.get("metadata") or {}),
+    }
+
     source = Source(
         id=f"src_{uuid4().hex}",
         tenant_id=tenant_id,
@@ -46,7 +52,7 @@ def add_transcript_source(
         provider="podcast",
         status="succeeded",
         language=source_language,
-        metadata_json={"show_title": show_title, "input_type": "transcript_fixture"},
+        metadata_json=source_metadata,
     )
     session.add(source)
     session.flush()

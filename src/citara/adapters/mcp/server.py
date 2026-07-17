@@ -65,6 +65,7 @@ def create_mcp_server() -> FastMCP:
         limit: int = 10,
         mode: str = "hybrid",
         entity_slugs: list[str] | None = None,
+        source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
     ) -> dict:
@@ -88,6 +89,7 @@ def create_mcp_server() -> FastMCP:
                         limit=limit,
                         mode=mode,
                         entity_slugs=entity_slugs,
+                        source_tree_slug=source_tree_slug,
                         language_policy=language_policy,
                         language=language,
                     )
@@ -100,6 +102,7 @@ def create_mcp_server() -> FastMCP:
         limit: int = 8,
         mode: str = "hybrid",
         entity_slugs: list[str] | None = None,
+        source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
     ) -> dict:
@@ -111,6 +114,7 @@ def create_mcp_server() -> FastMCP:
                 limit=limit,
                 mode=mode,
                 entity_slugs=entity_slugs,
+                source_tree_slug=source_tree_slug,
                 language_policy=language_policy,
                 language=language,
             )

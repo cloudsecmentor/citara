@@ -13,6 +13,7 @@ def hybrid_search(
     limit: int = 10,
     tenant_id: str = settings.default_tenant_id,
     entity_slugs: list[str] | None = None,
+    source_tree_slug: str | None = None,
     source_language: str | None = None,
     include_und: bool = False,
 ) -> list[SearchResult]:
@@ -25,6 +26,7 @@ def hybrid_search(
         limit=limit * 2,
         tenant_id=tenant_id,
         entity_slugs=entity_slugs,
+        source_tree_slug=source_tree_slug,
         source_language=source_language,
         include_und=include_und,
     ):
@@ -37,6 +39,7 @@ def hybrid_search(
         limit=limit * 2,
         tenant_id=tenant_id,
         entity_slugs=entity_slugs,
+        source_tree_slug=source_tree_slug,
         source_language=source_language,
         include_und=include_und,
     ):

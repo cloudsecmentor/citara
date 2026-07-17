@@ -85,6 +85,7 @@ def search_by_mode(
     limit: int = 10,
     mode: str = "hybrid",
     entity_slugs: list[str] | None = None,
+    source_tree_slug: str | None = None,
     language_policy: str = "auto",
     language: str | None = None,
 ) -> list[SearchResult]:
@@ -104,6 +105,7 @@ def search_by_mode(
             limit=limit,
             tenant_id=tenant_id,
             entity_slugs=entity_slugs,
+            source_tree_slug=source_tree_slug,
             source_language=source_language,
             include_und=include_und,
         )
@@ -114,6 +116,7 @@ def search_by_mode(
             limit=limit,
             tenant_id=tenant_id,
             entity_slugs=entity_slugs,
+            source_tree_slug=source_tree_slug,
             source_language=source_language,
             include_und=include_und,
         )
@@ -124,6 +127,7 @@ def search_by_mode(
             limit=limit,
             tenant_id=tenant_id,
             entity_slugs=entity_slugs,
+            source_tree_slug=source_tree_slug,
             source_language=source_language,
             include_und=include_und,
         )
@@ -138,6 +142,7 @@ def retrieve_context_pack(
     limit: int = 8,
     mode: str = "hybrid",
     entity_slugs: list[str] | None = None,
+    source_tree_slug: str | None = None,
     language_policy: str = "auto",
     language: str | None = None,
 ) -> dict:
@@ -147,6 +152,7 @@ def retrieve_context_pack(
         limit=limit,
         mode=mode,
         entity_slugs=entity_slugs,
+        source_tree_slug=source_tree_slug,
         language_policy=language_policy,
         language=language,
     )

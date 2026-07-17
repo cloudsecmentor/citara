@@ -112,6 +112,7 @@ def test_textinus_pipeline_parses_anchor_feed_as_audio_only():
             "description": "Join George and Elle as they discuss the text.",
             "duration": "00:37:54",
             "duration_seconds": 2274,
+            "published": "",
             "audio_url": "https://audio.example.com/textinus.m4a",
             "transcript_url": None,
             "transcript_urls": [],
