@@ -58,3 +58,20 @@ def test_hybrid_search_combines_keyword_and_vector_results(db_session):
 
     assert cat_source.id in source_ids
     assert dog_source.id in source_ids
+
+
+def test_hybrid_search_rank_fusion_resists_keyword_score_dominance(db_session):
+    from citara.core.ingestion.text import add_text_source
+    from citara.core.retrieval.hybrid import hybrid_search
+
+    exact = add_text_source(db_session, title="A Sunbeam Note", text="sunbeam naps")
+    add_text_source(db_session, title="Filler Note", text="sunbeam naps warmth")
+    spam = add_text_source(db_session, title="Spam Note", text=" ".join(["sunbeam"] * 30))
+
+    results = hybrid_search(db_session, query="sunbeam naps", limit=3)
+    source_ids = [result.source_id for result in results]
+
+    # Under raw score addition, the keyword term count (30) would drown out
+    # cosine similarity (<= 1.0) and put the spam note first.
+    assert source_ids[0] == exact.id
+    assert spam.id in source_ids
