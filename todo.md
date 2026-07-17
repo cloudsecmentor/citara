@@ -22,11 +22,11 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 ## P1 — Repo hygiene & contributor experience
 
 - [x] **Isolate tests from the real DB.** `tests/conftest.py` now forces `DATABASE_URL` onto a throwaway temp SQLite DB before importing `citara`, so the suite no longer reads/writes the user's real corpus.
-- [ ] **Add CI** (`.github/workflows/ci.yml`): run `uv sync --dev`, `uv run pytest -q`, and an Alembic upgrade check on push/PR across Python 3.11/3.12.
-- [ ] **Add lint/format/type config** to `pyproject.toml`:
-  - [ ] `ruff` (lint + format) — cache dir is already gitignored, config is missing.
-  - [ ] `mypy` (at least on `src/`).
-  - [ ] Wire them into CI.
+- [x] **Add CI** (`.github/workflows/ci.yml`): ruff lint/format check, mypy, pytest, and an Alembic upgrade check on a fresh SQLite DB, on push/PR across Python 3.11/3.12/3.14.
+- [x] **Add lint/format/type config** to `pyproject.toml`:
+  - [x] `ruff` (lint + format, line-length 140; `E501` off, `B008` allowed for FastAPI `Depends`, `E402` allowed in scripts/conftest). Whole tree linted and formatted; the lint pass surfaced real `NameError` bugs (missing `sys`/`os` imports in connector error paths).
+  - [x] `mypy` on `src/` (lenient baseline: `ignore_missing_imports`, `check_untyped_defs`; zero errors).
+  - [x] Wire them into CI.
 - [ ] **Add `.pre-commit-config.yaml`** (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, mypy optional).
 - [ ] **Add `CODE_OF_CONDUCT.md`** (Contributor Covenant) — standard for public repos.
 - [ ] **Add issue/PR templates** under `.github/` (bug report, feature request, PR checklist).
@@ -34,8 +34,13 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## P2 — Product / functional gaps
 
-- [ ] **Raw audio transcription in core** (currently only a fixture provider; real Whisper lives inside connectors). Promote a real transcription provider into `core/transcription/` behind the existing protocol.
-- [ ] **Reranking** for retrieval (README lists basic hybrid search only).
+- [ ] **Promote real audio transcription into `core/transcription/` and collapse the per-podcast pipelines.** Today each show has its own near-parallel scripts (`remote_bema_transcribe.py`, `transcribe_bema_remote_batch.py`, `transcribe_bibleproject_remote_batch.py`, plus per-show import scripts), and real Whisper lives inside connectors while `core/transcription/providers.py` only has a fixture provider. Plan:
+  - [ ] Move a real transcription provider (faster-whisper local and/or remote batch) behind the existing `core/transcription/` protocol.
+  - [ ] Build one generic batch driver (discover → download → transcribe → publish with taxonomy metadata) that connectors feed with show-specific config only.
+  - [ ] Reduce `scripts/transcribe_*_remote_batch.py` and per-show import scripts to thin wrappers or delete them.
+  - [ ] Removes the README's first listed limitation ("Raw audio transcription is not implemented yet").
+- [x] **Hybrid retrieval score fusion fixed**: keyword/vector rankings now merge via reciprocal rank fusion (k=60) instead of adding raw scores on incomparable scales.
+- [ ] **Reranking** for retrieval (cross-encoder or LLM reranker layered on top of RRF-fused hybrid results).
 - [ ] **Implement or remove Docker stubs.** `worker` and `frontend` services in `docker-compose.yml` are print-stubs — either implement a minimal version or clearly mark/remove them so first-run `docker compose up` isn't confusing.
 - [ ] **Deferred ingestion types** from `docs/IDEA.md`: PDF (dep `pymupdf` already present), OCR/screenshots, web article ingestion. Scope one at a time.
 - [ ] **A minimal debug web UI** (the IDEA doc calls for one for uploads/inspecting jobs/testing retrieval).

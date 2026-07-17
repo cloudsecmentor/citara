@@ -27,7 +27,7 @@ This project is **source-available**, not OSI open source.
 - Deterministic local embeddings for offline testing.
 - OpenAI embedding provider.
 - Azure AI Foundry / Azure OpenAI-compatible embedding provider.
-- Keyword, vector, and hybrid retrieval.
+- Keyword, vector, and hybrid retrieval (reciprocal rank fusion).
 - Citation/context-pack output.
 - FastAPI HTTP API.
 - MCP stdio tools (agent-agnostic).
@@ -38,7 +38,7 @@ This project is **source-available**, not OSI open source.
 
 - Raw audio transcription is not implemented yet.
 - PDF, OCR, screenshots, and general web article ingestion are intentionally deferred.
-- Retrieval ranking is basic hybrid search; reranking is not implemented.
+- Hybrid retrieval fuses keyword and vector rankings with reciprocal rank fusion; cross-encoder reranking is not implemented.
 - Multi-user and hosted/SaaS deployment are not production-ready.
 - Podcast timestamps for untimed transcripts are approximate and proportional to transcript character offsets.
 - This repository does not include third-party podcast transcripts or audio.
