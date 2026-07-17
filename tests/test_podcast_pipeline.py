@@ -4,7 +4,6 @@ import importlib.util
 import json
 from pathlib import Path
 
-
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "podcast_pipeline.py"
 spec = importlib.util.spec_from_file_location("podcast_pipeline", SCRIPT_PATH)
 podcast_pipeline = importlib.util.module_from_spec(spec)
@@ -226,16 +225,18 @@ def test_load_config_or_url_treats_unknown_value_as_direct_url(tmp_path):
 
 
 def test_parser_supports_config_driven_source_names_and_config_path():
-    args = podcast_pipeline.build_parser().parse_args([
-        "--config",
-        "citara.sources.json",
-        "transcribe-missing",
-        "bema",
-        "--limit",
-        "2",
-        "--model",
-        "small",
-    ])
+    args = podcast_pipeline.build_parser().parse_args(
+        [
+            "--config",
+            "citara.sources.json",
+            "transcribe-missing",
+            "bema",
+            "--limit",
+            "2",
+            "--model",
+            "small",
+        ]
+    )
 
     assert args.config == "citara.sources.json"
     assert args.command == "transcribe-missing"

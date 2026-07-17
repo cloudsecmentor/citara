@@ -76,15 +76,11 @@ def search_knowledge(
         return []
 
     statement = (
-        select(Chunk, Source)
-        .join(Source, Chunk.source_id == Source.id)
-        .where(Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
+        select(Chunk, Source).join(Source, Chunk.source_id == Source.id).where(Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
     )
     if source_language:
         if include_und:
-            statement = statement.where(
-                or_(Source.language == source_language, Source.language.is_(None))
-            )
+            statement = statement.where(or_(Source.language == source_language, Source.language.is_(None)))
         else:
             statement = statement.where(Source.language == source_language)
     if source_tree_slug:

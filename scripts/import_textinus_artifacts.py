@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Import generated Text in Us faster-whisper artifacts into Citara."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,7 +9,7 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -148,7 +149,7 @@ def main() -> None:
 
     db_path = args.citara_root / "citara.db"
     if db_path.exists():
-        backup = db_path.with_suffix(f".backup-before-textinus-import-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.db")
+        backup = db_path.with_suffix(f".backup-before-textinus-import-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.db")
         shutil.copy2(db_path, backup)
         print(f"backup={backup}")
     init_db()

@@ -23,6 +23,7 @@ from citara.core.summary import resolve_summary_context as core_resolve_summary_
 try:
     from mcp.server.fastmcp import FastMCP
 except ModuleNotFoundError:  # pragma: no cover - fallback for minimal local installs
+
     class FastMCP:  # type: ignore[no-redef]
         def __init__(self, name: str | None = None, **_: object) -> None:
             self.name = name
@@ -203,7 +204,11 @@ def create_mcp_server() -> FastMCP:
                 retrieval_weight=retrieval_weight,
                 preference_label=preference_label,
             )
-            return {"found": False, "source_id": source_id} if source is None else {"found": True, "source_id": source.id, "metadata": source.metadata_json}
+            return (
+                {"found": False, "source_id": source_id}
+                if source is None
+                else {"found": True, "source_id": source.id, "metadata": source.metadata_json}
+            )
 
     @server.tool()
     def delete_source(source_id: str) -> dict:

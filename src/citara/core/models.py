@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
+
 try:
     from pgvector.sqlalchemy import Vector
 except ModuleNotFoundError:  # pragma: no cover
@@ -18,7 +19,7 @@ class EmbeddingVector(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def load_dialect_impl(self, dialect):  # type: ignore[no-untyped-def]
+    def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(Vector())
         return dialect.type_descriptor(JSON())
@@ -29,7 +30,7 @@ class Base(DeclarativeBase):
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Tenant(Base):

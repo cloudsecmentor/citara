@@ -7,6 +7,7 @@ This script is intentionally DB-direct and resumable-ish for local maintenance:
 - OpenAI/Whisper raw chunked transcripts are imported only for episodes without a current published transcript
 - BEMA DB rows can be rebuilt without disturbing other sources
 """
+
 from __future__ import annotations
 
 import argparse
@@ -14,7 +15,7 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -129,7 +130,7 @@ def _clean_text(value: object) -> str:
 
 
 def _ends_sentence(text: str) -> bool:
-    return text.rstrip().endswith((".", "?", "!", '.”', '?"', '!"', ".'", "?'", "!'"))
+    return text.rstrip().endswith((".", "?", "!", ".”", '?"', '!"', ".'", "?'", "!'"))
 
 
 def _choose_chunk_end(units: list[dict[str, Any]], start: int, *, target_chars: int, max_chars: int) -> int:
@@ -186,11 +187,7 @@ def build_legacy_chunked_from_raw(
         {
             "text": text,
             "start": float(segment.get("start") or 0.0),
-            "word_start": (
-                float((segment.get("words") or [])[0].get("start") or 0.0)
-                if (segment.get("words") or [])
-                else None
-            ),
+            "word_start": (float((segment.get("words") or [])[0].get("start") or 0.0) if (segment.get("words") or []) else None),
         }
         for segment in (raw_doc.get("segments") or [])
         if (text := _clean_text(segment.get("text")))
@@ -211,7 +208,9 @@ def build_legacy_chunked_from_raw(
                     "start": format_mmss(float(anchor_seconds)),
                     "episode": episode,
                     "url": f" {episode_url}?t={primary_start_seconds} ",
-                    "overlap_chars": 0 if overlap_start == primary_start else sum(len(str(unit["text"])) + 1 for unit in units[overlap_start:primary_start]),
+                    "overlap_chars": 0
+                    if overlap_start == primary_start
+                    else sum(len(str(unit["text"])) + 1 for unit in units[overlap_start:primary_start]),
                 },
             }
         )
@@ -261,7 +260,9 @@ def source_exists(session, title: str) -> str | None:  # type: ignore[no-untyped
 
 
 def bema_source_ids(session) -> list[str]:  # type: ignore[no-untyped-def]
-    return [row[0] for row in session.execute(select(Source.id).where(Source.metadata_json["source_tree_slug"].as_string() == "bema")).all()]
+    return [
+        row[0] for row in session.execute(select(Source.id).where(Source.metadata_json["source_tree_slug"].as_string() == "bema")).all()
+    ]
 
 
 def delete_source_ids(source_ids: list[str]) -> int:
@@ -284,14 +285,22 @@ def delete_bema_sources() -> int:
     return delete_source_ids(source_ids)
 
 
-def import_payload(title: str, episode_url: str, segments: list[dict[str, Any]], metadata: dict[str, Any], entities: list[dict[str, Any]] | None = None) -> str:
+def import_payload(
+    title: str, episode_url: str, segments: list[dict[str, Any]], metadata: dict[str, Any], entities: list[dict[str, Any]] | None = None
+) -> str:
     with SessionLocal() as session:
         existing = source_exists(session, title)
         if existing:
             return existing
         source = add_transcript_source(
             session,
-            payload={"show_title": "The BEMA Podcast", "episode_title": title, "episode_url": episode_url, "segments": segments, "entities": entities or []},
+            payload={
+                "show_title": "The BEMA Podcast",
+                "episode_title": title,
+                "episode_url": episode_url,
+                "segments": segments,
+                "entities": entities or [],
+            },
         )
         source.metadata_json = {**(source.metadata_json or {}), **metadata}
         session.add(source)
@@ -326,7 +335,9 @@ def import_existing_normalized(artifact_items: Path) -> list[dict[str, Any]]:
             "retrieval_weight": source_doc.get("retrieval_weight"),
             "artifact_uri": str(item_dir),
         }
-        source_id = import_payload(source_doc["title"], source_doc.get("canonical_url") or "", segments, metadata, source_doc.get("entities") or BEMA_ENTITIES)
+        source_id = import_payload(
+            source_doc["title"], source_doc.get("canonical_url") or "", segments, metadata, source_doc.get("entities") or BEMA_ENTITIES
+        )
         imported.append({"title": source_doc["title"], "source_id": source_id, "kind": "existing_published"})
     return imported
 
@@ -342,7 +353,12 @@ def import_published_from_pages(artifact_root: Path, state: dict[str, Any], *, l
         episode = by_episode.get(episode_key, (None, {}))[1]
         if not episode:
             # Keep a conservative title if RSS state is missing.
-            episode = {"episode": episode_key, "episode_title": f"BEMA {episode_key}", "episode_url": f"https://www.bemadiscipleship.com/{episode_key}", "duration_seconds": 0}
+            episode = {
+                "episode": episode_key,
+                "episode_title": f"BEMA {episode_key}",
+                "episode_url": f"https://www.bemadiscipleship.com/{episode_key}",
+                "duration_seconds": 0,
+            }
         links = extract_transcript_links(page.read_text(errors="ignore"))
         for transcript in links:
             version = transcript["version"]
@@ -380,9 +396,25 @@ def import_published_from_pages(artifact_root: Path, state: dict[str, Any], *, l
             write_json(item_dir / "source.json", source_doc)
             (item_dir / "transcript.source.txt").write_text(text + "\n")
             (item_dir / "transcript.txt").write_text(text + "\n")
-            write_json(item_dir / "transcript.normalized.json", {"schema": "citara.transcript.normalized.v1", "language": "en", "segments": [dict(segment_index=i, **s) for i, s in enumerate(segments)]})
+            write_json(
+                item_dir / "transcript.normalized.json",
+                {
+                    "schema": "citara.transcript.normalized.v1",
+                    "language": "en",
+                    "segments": [dict(segment_index=i, **s) for i, s in enumerate(segments)],
+                },
+            )
             write_json(item_dir / "transcript.raw.json", {"source": "google_doc", "url": transcript["url"], "text": text})
-            write_json(item_dir / "import-payload.json", {"show_title": "The BEMA Podcast", "episode_title": title, "episode_url": source_doc["canonical_url"], "segments": segments, "entities": BEMA_ENTITIES})
+            write_json(
+                item_dir / "import-payload.json",
+                {
+                    "show_title": "The BEMA Podcast",
+                    "episode_title": title,
+                    "episode_url": source_doc["canonical_url"],
+                    "segments": segments,
+                    "entities": BEMA_ENTITIES,
+                },
+            )
             metadata = {
                 "source_tree_slug": "bema",
                 "source_item_id": item_id,
@@ -406,7 +438,9 @@ def import_published_from_pages(artifact_root: Path, state: dict[str, Any], *, l
 def current_published_episode_numbers() -> set[int]:
     current: set[int] = set()
     with SessionLocal() as session:
-        rows = session.execute(select(Source.title, Source.metadata_json).where(Source.metadata_json["source_tree_slug"].as_string() == "bema")).all()
+        rows = session.execute(
+            select(Source.title, Source.metadata_json).where(Source.metadata_json["source_tree_slug"].as_string() == "bema")
+        ).all()
         for title, metadata in rows:
             metadata = metadata or {}
             if metadata.get("transcript_provenance") != "published_transcript" or metadata.get("preference_label") != "current":
@@ -480,9 +514,25 @@ def import_generated_openai(
         write_json(item_dir / "source.json", source_doc)
         if raw_doc is not None:
             write_json(item_dir / "transcript.raw.json", raw_doc)
-        write_json(item_dir / "transcript.normalized.json", {"schema": "citara.transcript.normalized.v1", "language": "en", "segments": [dict(segment_index=i, **s) for i, s in enumerate(segments)]})
+        write_json(
+            item_dir / "transcript.normalized.json",
+            {
+                "schema": "citara.transcript.normalized.v1",
+                "language": "en",
+                "segments": [dict(segment_index=i, **s) for i, s in enumerate(segments)],
+            },
+        )
         (item_dir / "transcript.txt").write_text("\n".join(s["text"] for s in segments) + "\n")
-        write_json(item_dir / "import-payload.json", {"show_title": "The BEMA Podcast", "episode_title": title, "episode_url": source_doc["canonical_url"], "segments": segments, "entities": BEMA_ENTITIES})
+        write_json(
+            item_dir / "import-payload.json",
+            {
+                "show_title": "The BEMA Podcast",
+                "episode_title": title,
+                "episode_url": source_doc["canonical_url"],
+                "segments": segments,
+                "entities": BEMA_ENTITIES,
+            },
+        )
         metadata = {
             "source_tree_slug": "bema",
             "source_item_id": item_id,
@@ -513,7 +563,11 @@ def stats() -> dict[str, Any]:
             by_prov[str(metadata.get("transcript_provenance"))] = by_prov.get(str(metadata.get("transcript_provenance")), 0) + 1
             by_pref[str(metadata.get("preference_label"))] = by_pref.get(str(metadata.get("preference_label")), 0) + 1
         source_count = sum(by_prov.values())
-        chunk_count = session.execute(select(Chunk.id).join(Source, Chunk.source_id == Source.id).where(Source.metadata_json["source_tree_slug"].as_string() == "bema")).all()
+        chunk_count = session.execute(
+            select(Chunk.id)
+            .join(Source, Chunk.source_id == Source.id)
+            .where(Source.metadata_json["source_tree_slug"].as_string() == "bema")
+        ).all()
     return {"bema_sources": source_count, "bema_chunks": len(chunk_count), "by_provenance": by_prov, "by_preference": by_pref}
 
 
@@ -526,13 +580,23 @@ def main() -> None:
     parser.add_argument("--skip-generated-openai", action="store_true")
     parser.add_argument("--limit-published", type=int)
     parser.add_argument("--limit-generated", type=int)
-    parser.add_argument("--replace-generated-openai", action="store_true", help="Delete and re-import generated OpenAI/Whisper rows that already exist")
-    parser.add_argument("--rewrite-openai-chunked", action="store_true", help="Regenerate BEMA_az-style *-oai-raw-chunked.json files from *-oai-raw.json before import")
+    parser.add_argument(
+        "--replace-generated-openai", action="store_true", help="Delete and re-import generated OpenAI/Whisper rows that already exist"
+    )
+    parser.add_argument(
+        "--rewrite-openai-chunked",
+        action="store_true",
+        help="Regenerate BEMA_az-style *-oai-raw-chunked.json files from *-oai-raw.json before import",
+    )
     parser.add_argument("--rewrite-start", type=int, help="First episode to rewrite when --rewrite-openai-chunked is set")
     parser.add_argument("--rewrite-end", type=int, help="Last episode to rewrite when --rewrite-openai-chunked is set")
     parser.add_argument("--chunk-target-chars", type=int, default=1800, help="Target characters per generated chunked artifact entry")
-    parser.add_argument("--chunk-max-chars", type=int, default=2400, help="Hard-ish maximum characters per generated chunked artifact entry")
-    parser.add_argument("--chunk-overlap-chars", type=int, default=250, help="Approximate overlap characters from the previous generated chunk")
+    parser.add_argument(
+        "--chunk-max-chars", type=int, default=2400, help="Hard-ish maximum characters per generated chunked artifact entry"
+    )
+    parser.add_argument(
+        "--chunk-overlap-chars", type=int, default=250, help="Approximate overlap characters from the previous generated chunk"
+    )
     args = parser.parse_args()
 
     os.environ.setdefault("DATABASE_URL", f"sqlite:///{args.citara_root / 'citara.db'}")
@@ -542,7 +606,7 @@ def main() -> None:
 
     db_path = args.citara_root / "citara.db"
     if db_path.exists():
-        backup = db_path.with_suffix(f".backup-before-bema-rebuild-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}.db")
+        backup = db_path.with_suffix(f".backup-before-bema-rebuild-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.db")
         shutil.copy2(db_path, backup)
         print(f"backup={backup}")
     init_db()
@@ -581,7 +645,9 @@ def main() -> None:
             end=args.rewrite_end if args.rewrite_openai_chunked else None,
         )
         print(f"generated_openai_imported={len(generated)}")
-    print(json.dumps({"stats": stats(), "sample_published": published[:3], "sample_generated": generated[:3]}, indent=2, ensure_ascii=False))
+    print(
+        json.dumps({"stats": stats(), "sample_published": published[:3], "sample_generated": generated[:3]}, indent=2, ensure_ascii=False)
+    )
 
 
 if __name__ == "__main__":

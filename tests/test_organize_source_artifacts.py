@@ -19,9 +19,7 @@ def write_payload(path: Path) -> None:
                 "show_title": "Fixture Show",
                 "episode_title": "Fixture Episode",
                 "episode_url": "https://example.com/fixture",
-                "segments": [
-                    {"start_ms": 0, "end_ms": 1000, "speaker": "Host", "text": "Hello."}
-                ],
+                "segments": [{"start_ms": 0, "end_ms": 1000, "speaker": "Host", "text": "Hello."}],
             }
         )
     )
@@ -72,9 +70,7 @@ def test_organize_all_rewrites_legacy_state_artifact_paths(tmp_path):
     organizer.organize_all(repo=repo, artifact_root=artifact_root, state_root=state_root)
 
     copied = json.loads((state_root / "bibleproject_pipeline_state.json").read_text())
-    assert copied["episodes"]["abc"]["pdf_path"] == (
-        "source-artifacts://bibleproject/items/example-episode/transcript.source.pdf"
-    )
+    assert copied["episodes"]["abc"]["pdf_path"] == ("source-artifacts://bibleproject/items/example-episode/transcript.source.pdf")
     assert "data/import-artifacts" not in json.dumps(copied)
 
 

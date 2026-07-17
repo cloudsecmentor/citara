@@ -5,7 +5,6 @@ import uvicorn
 from citara.adapters.api.main import create_app
 from citara.adapters.mcp.server import create_mcp_server
 
-
 app = create_app()
 mcp_server = create_mcp_server()
 

@@ -93,5 +93,8 @@ def test_state_helpers_skip_done_and_choose_next_episode(tmp_path: Path):
 
 
 def test_safe_filename_is_stable_and_short():
-    assert safe_filename("10th Commandment: Do Not Desire Your Neighbor’s Possessions") == "10th-commandment-do-not-desire-your-neighbor-s-possessions"
+    assert (
+        safe_filename("10th Commandment: Do Not Desire Your Neighbor’s Possessions")
+        == "10th-commandment-do-not-desire-your-neighbor-s-possessions"
+    )
     assert len(safe_filename("x" * 300)) <= 120

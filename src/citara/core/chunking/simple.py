@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Iterable
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9']+")
 

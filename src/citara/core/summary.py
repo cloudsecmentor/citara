@@ -55,13 +55,7 @@ def resolve_source_for_summary(
     preference: str = "current",
     tenant_id: str = settings.default_tenant_id,
 ) -> Source | None:
-    sources = list(
-        session.execute(
-            select(Source)
-            .where(Source.tenant_id == tenant_id)
-            .order_by(Source.created_at.desc())
-        ).scalars()
-    )
+    sources = list(session.execute(select(Source).where(Source.tenant_id == tenant_id).order_by(Source.created_at.desc())).scalars())
     candidates = [(source, _match_score(source, query)) for source in sources]
     candidates = [(source, score) for source, score in candidates if score > 0]
     if not candidates:
@@ -100,11 +94,7 @@ def get_source_summary_context(
     source = session.get(Source, source_id)
     if source is None or source.tenant_id != tenant_id:
         return None
-    query = (
-        select(Chunk)
-        .where(Chunk.tenant_id == tenant_id, Chunk.source_id == source_id)
-        .order_by(Chunk.chunk_index.asc())
-    )
+    query = select(Chunk).where(Chunk.tenant_id == tenant_id, Chunk.source_id == source_id).order_by(Chunk.chunk_index.asc())
     if max_chunks is not None:
         query = query.limit(max_chunks)
     chunks = list(session.execute(query).scalars())

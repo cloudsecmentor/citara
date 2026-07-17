@@ -49,12 +49,39 @@ citara-mcp = "citara.adapters.mcp.stdio:main"
 dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
+  "ruff>=0.8",
+  "mypy>=1.13",
 ]
 
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI dependency injection uses function calls in argument defaults.
+"src/citara/adapters/api/main.py" = ["B008"]
+# Scripts and test setup configure sys.path / env vars before imports.
+"scripts/*" = ["E402"]
+"tests/conftest.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+mypy_path = "src"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+no_implicit_optional = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/citara"]

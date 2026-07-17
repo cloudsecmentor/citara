@@ -5,7 +5,9 @@ import argparse
 import email.utils
 import html
 import json
+import os
 import re
+import sys
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -143,7 +145,12 @@ def episode_status(state_path: Path, guid: str, field: str) -> str | None:
 def planned_next_episode(state_path: Path, episodes: list[dict[str, Any]], field: str) -> dict[str, Any] | None:
     state = load_state(state_path)
     for episode in episodes:
-        if state.get("episodes", {}).get(episode["guid"], {}).get(field) not in {"imported", "transcribed", "skipped_existing", "missing_transcript"}:
+        if state.get("episodes", {}).get(episode["guid"], {}).get(field) not in {
+            "imported",
+            "transcribed",
+            "skipped_existing",
+            "missing_transcript",
+        }:
             return episode
     return None
 
@@ -182,6 +189,7 @@ def existing_source_id(title: str) -> str | None:
     try:
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import sessionmaker
+
         from citara.core.models import Source
     except Exception:
         return None
@@ -208,7 +216,7 @@ def download_audio(episode: dict[str, Any], artifact_dir: Path) -> Path:
 
 def transcribe_with_faster_whisper(audio_path: Path, model: str, device: str, compute_type: str) -> tuple[str, list[dict[str, Any]]]:
     try:
-        from faster_whisper import WhisperModel  # type: ignore
+        from faster_whisper import WhisperModel
     except ImportError as exc:
         raise RuntimeError("Install faster-whisper first: uv pip install faster-whisper") from exc
     whisper = WhisperModel(model, device=device, compute_type=compute_type)
@@ -222,7 +230,16 @@ def transcribe_with_faster_whisper(audio_path: Path, model: str, device: str, co
     return "\n".join(parts), segments
 
 
-def transcribe_missing(episodes: list[dict[str, Any]], state_path: Path, artifact_dir: Path, api_url: str, model: str, device: str, compute_type: str, limit: int | None = None) -> list[dict[str, Any]]:
+def transcribe_missing(
+    episodes: list[dict[str, Any]],
+    state_path: Path,
+    artifact_dir: Path,
+    api_url: str,
+    model: str,
+    device: str,
+    compute_type: str,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
     results = []
     processed = 0
     for episode in episodes:
@@ -231,7 +248,7 @@ def transcribe_missing(episodes: list[dict[str, Any]], state_path: Path, artifac
         try:
             title = f"Text in Us: {episode['title']} (Generated Transcript)"
             if source_id := existing_source_id(title):
-                result = {"source_title": title, "source_id": source_id, "segments": None}
+                result: dict[str, Any] = {"source_title": title, "source_id": source_id, "segments": None}
                 update_episode_state(state_path, episode, transcription_status="skipped_existing", **result)
                 results.append(result)
                 processed += 1
@@ -266,7 +283,10 @@ def transcribe_missing(episodes: list[dict[str, Any]], state_path: Path, artifac
                 },
             }
             response = post_json(f"{api_url.rstrip('/')}/sources/transcript", payload)
-            patch_json(f"{api_url.rstrip('/')}/sources/{response['source_id']}/preference", {"retrieval_weight": 0.9, "preference_label": "generated"})
+            patch_json(
+                f"{api_url.rstrip('/')}/sources/{response['source_id']}/preference",
+                {"retrieval_weight": 0.9, "preference_label": "generated"},
+            )
             result = {"source_title": title, "source_id": response["source_id"], "segments": len(segments), "audio_path": str(audio)}
             update_episode_state(state_path, episode, transcription_status="transcribed", **result)
             results.append(result)
@@ -286,13 +306,20 @@ def transcribe_missing(episodes: list[dict[str, Any]], state_path: Path, artifac
 def print_status(state_path: Path, episodes: list[dict[str, Any]]) -> None:
     state = load_state(state_path)
     entries = state.get("episodes", {})
-    print(json.dumps({
-        "episodes": len(episodes),
-        "published_transcript_episodes": 0,
-        "missing_transcript_episodes": len(episodes),
-        "generated_transcribed_or_existing": sum(1 for ep in entries.values() if ep.get("transcription_status") in {"transcribed", "skipped_existing"}),
-        "next_missing_to_transcribe": (planned_next_episode(state_path, episodes, "transcription_status") or {}).get("title"),
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "episodes": len(episodes),
+                "published_transcript_episodes": 0,
+                "missing_transcript_episodes": len(episodes),
+                "generated_transcribed_or_existing": sum(
+                    1 for ep in entries.values() if ep.get("transcription_status") in {"transcribed", "skipped_existing"}
+                ),
+                "next_missing_to_transcribe": (planned_next_episode(state_path, episodes, "transcription_status") or {}).get("title"),
+            },
+            indent=2,
+        )
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -313,11 +340,23 @@ def main() -> None:
     args = build_parser().parse_args()
     show_title, episodes = discover(args.feed_url, args.state)
     if args.command == "discover":
-        print(json.dumps({"show_title": show_title, "episodes": len(episodes), "published_transcript_episodes": 0, "missing_transcript_episodes": len(episodes)}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "show_title": show_title,
+                    "episodes": len(episodes),
+                    "published_transcript_episodes": 0,
+                    "missing_transcript_episodes": len(episodes),
+                },
+                indent=2,
+            )
+        )
     elif args.command == "status":
         print_status(args.state, episodes)
     elif args.command == "transcribe-missing":
-        results = transcribe_missing(episodes, args.state, args.artifact_dir, args.api, args.model, args.device, args.compute_type, args.limit)
+        results = transcribe_missing(
+            episodes, args.state, args.artifact_dir, args.api, args.model, args.device, args.compute_type, args.limit
+        )
         print(json.dumps({"transcribed_this_run": len(results), "results": results[:5]}, indent=2))
 
 

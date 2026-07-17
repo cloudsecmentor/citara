@@ -25,8 +25,7 @@ SYNONYMS = {
 class EmbeddingProvider(Protocol):
     model: str
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        ...
+    def embed_texts(self, texts: list[str]) -> list[list[float]]: ...
 
 
 class DeterministicEmbeddingProvider:
@@ -128,7 +127,7 @@ def get_embedding_provider() -> EmbeddingProvider:
             }.items()
             if not value
         ]
-        if missing:
+        if missing or not (endpoint and api_key and deployment):
             raise ValueError(f"{', '.join(missing)} required when EMBEDDING_PROVIDER={provider}")
         return AzureFoundryEmbeddingProvider(
             endpoint=endpoint,

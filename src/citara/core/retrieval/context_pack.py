@@ -47,9 +47,7 @@ def _resolve_source_language(
         return None, False
 
     if policy not in {"auto", "strict"}:
-        raise ValueError(
-            "Unsupported language_policy. Use 'auto', 'strict', or 'any'."
-        )
+        raise ValueError("Unsupported language_policy. Use 'auto', 'strict', or 'any'.")
 
     if policy == "strict":
         include_und = False
@@ -67,9 +65,13 @@ def _resolve_source_language(
         return dominant, include_und
 
     # If detected language doesn't exist in the corpus, fall back to dominant.
-    exists_stmt = select(func.count()).select_from(Source).where(
-        Source.tenant_id == tenant_id,
-        Source.language == candidate,
+    exists_stmt = (
+        select(func.count())
+        .select_from(Source)
+        .where(
+            Source.tenant_id == tenant_id,
+            Source.language == candidate,
+        )
     )
     count = session.execute(exists_stmt).scalar_one()
     if count == 0:

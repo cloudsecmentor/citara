@@ -69,6 +69,8 @@ def test_azure_foundry_embedding_provider_posts_expected_request(monkeypatch):
     vectors = provider.embed_texts(["hello"])
 
     assert vectors == [[0.5, 0.6]]
-    assert captured["url"] == "https://example.cognitiveservices.azure.com/openai/deployments/embed-deploy/embeddings?api-version=2024-02-01"
+    assert (
+        captured["url"] == "https://example.cognitiveservices.azure.com/openai/deployments/embed-deploy/embeddings?api-version=2024-02-01"
+    )
     assert captured["headers"]["api-key"] == "azure-key"
     assert captured["json"] == {"input": ["hello"]}

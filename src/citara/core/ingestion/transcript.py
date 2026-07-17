@@ -28,6 +28,7 @@ def add_transcript_source(
 
     # Best-effort language detection: prefer explicit payload language, else
     # infer from concatenated segment texts.
+    source_language: str | None
     if "language" in payload and payload.get("language"):
         source_language = str(payload["language"]).strip()
     else:
@@ -100,5 +101,3 @@ def add_transcript_source(
     session.commit()
     session.refresh(source)
     return source
-
-

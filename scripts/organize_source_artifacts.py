@@ -5,7 +5,7 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -98,7 +98,7 @@ def tree_meta(slug: str, title: str, tree_type: str, source_path: str | None = N
             "source_tree_type": tree_type,
             "title": title,
             "source_path": source_path,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         },
     )
 
@@ -238,7 +238,9 @@ def organize_bema_transcripts() -> list[dict[str, Any]]:
         if item_slug in seen:
             item_slug = slugify(f"{payload.get('episode_title') or src.stem}-{src.parent.name}-{src.stem}")
         seen.add(item_slug)
-        out.append(organize_payload_json(src=src, tree_slug="bema", tree_type="podcast", provenance="published_transcript", item_slug=item_slug))
+        out.append(
+            organize_payload_json(src=src, tree_slug="bema", tree_type="podcast", provenance="published_transcript", item_slug=item_slug)
+        )
     return out
 
 
@@ -269,7 +271,17 @@ def organize_bema_pages() -> list[dict[str, Any]]:
                     "artifact_version": 1,
                 },
             )
-        out.append({"source": relative_to_repo(src), "target": str(item_dir / "source-page.html"), "tree": "bema", "item": item_slug, "kind": "source_page_html", "bytes": src.stat().st_size, "sha256": sha256_file(src)})
+        out.append(
+            {
+                "source": relative_to_repo(src),
+                "target": str(item_dir / "source-page.html"),
+                "tree": "bema",
+                "item": item_slug,
+                "kind": "source_page_html",
+                "bytes": src.stat().st_size,
+                "sha256": sha256_file(src),
+            }
+        )
     return out
 
 
@@ -336,7 +348,13 @@ def copy_state(src: Path, dst: Path) -> dict[str, Any]:
         write_json(dst, state)
     else:
         copy_file(src, dst)
-    return {"source": relative_to_repo(src), "target": str(dst), "kind": "state_json", "bytes": src.stat().st_size, "sha256": sha256_file(src)}
+    return {
+        "source": relative_to_repo(src),
+        "target": str(dst),
+        "kind": "state_json",
+        "bytes": src.stat().st_size,
+        "sha256": sha256_file(src),
+    }
 
 
 def organize_states() -> list[dict[str, Any]]:
@@ -362,7 +380,7 @@ def organize_states() -> list[dict[str, Any]]:
 def build_summary(records: list[dict[str, Any]], state_records: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "schema": "citara.organization_manifest.v1",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "repo": str(REPO),
         "citara_root": str(Citara),
         "source_artifact_root": str(ARTIFACT_ROOT),
@@ -398,7 +416,12 @@ def organize_all(*, repo: Path = REPO, artifact_root: Path = ARTIFACT_ROOT, stat
 
 def main() -> None:
     summary = organize_all(repo=REPO, artifact_root=ARTIFACT_ROOT, state_root=STATE_ROOT)
-    print(json.dumps({k: summary[k] for k in ["citara_root", "artifact_count", "state_count", "artifact_counts_by_tree", "artifact_counts_by_kind"]}, indent=2))
+    print(
+        json.dumps(
+            {k: summary[k] for k in ["citara_root", "artifact_count", "state_count", "artifact_counts_by_tree", "artifact_counts_by_kind"]},
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

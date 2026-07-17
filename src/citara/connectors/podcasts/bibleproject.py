@@ -6,9 +6,7 @@ import html
 import json
 import os
 import re
-import shutil
-import subprocess
-import time
+import sys
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -73,7 +71,6 @@ def extract_transcript_links(description_html: str) -> list[str]:
     for match in re.finditer(r'<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', description_html, re.S | re.I):
         href = html.unescape(match.group(1))
         label = clean_html_text(match.group(2))
-        blob = f"{href} {label}".lower()
         href_lower = href.lower()
         label_lower = label.lower()
         if "transcript" not in label_lower and not ("transcript" in href_lower and ".pdf" in href_lower):
@@ -219,7 +216,7 @@ def discover(feed_url: str, state_path: Path) -> tuple[str, list[dict[str, Any]]
 
 def extract_pdf_text(pdf_path: Path) -> str:
     try:
-        import fitz  # type: ignore
+        import fitz
     except ImportError as exc:
         raise RuntimeError("PyMuPDF is required for PDF extraction. Install with: uv add pymupdf") from exc
     doc = fitz.open(pdf_path)
@@ -271,7 +268,7 @@ def make_segments(text: str, duration_seconds: int) -> list[dict[str, Any]]:
     chunks = [chunk for chunk in chunks if len(chunk) >= 20]
     total_chars = max(sum(len(chunk) for chunk in chunks), 1)
     elapsed = 0
-    segments = []
+    segments: list[dict[str, Any]] = []
     for index, chunk in enumerate(chunks):
         start_ms = segments[-1]["end_ms"] if segments else 0
         if index == len(chunks) - 1:
@@ -343,7 +340,9 @@ def annotate_source_metadata(source_id: str, metadata: dict[str, Any]) -> None:
         session.commit()
 
 
-def import_published(episodes: list[dict[str, Any]], state_path: Path, artifact_dir: Path, api_url: str, limit: int | None = None) -> list[dict[str, Any]]:
+def import_published(
+    episodes: list[dict[str, Any]], state_path: Path, artifact_dir: Path, api_url: str, limit: int | None = None
+) -> list[dict[str, Any]]:
     artifact_dir.mkdir(parents=True, exist_ok=True)
     imported: list[dict[str, Any]] = []
     processed = 0
@@ -428,7 +427,7 @@ def download_audio(episode: dict[str, Any], artifact_dir: Path) -> Path:
 
 def transcribe_with_faster_whisper(audio_path: Path, model: str, device: str, compute_type: str) -> tuple[str, list[dict[str, Any]]]:
     try:
-        from faster_whisper import WhisperModel  # type: ignore
+        from faster_whisper import WhisperModel
     except ImportError as exc:
         raise RuntimeError("Install faster-whisper first: uv pip install faster-whisper") from exc
     whisper = WhisperModel(model, device=device, compute_type=compute_type)
@@ -503,7 +502,12 @@ def transcribe_missing(
                 )
             except Exception:
                 pass
-            result = {"source_title": title, "source_id": response.get("source_id"), "segments": len(segments), "audio_path": str(audio_path)}
+            result = {
+                "source_title": title,
+                "source_id": response.get("source_id"),
+                "segments": len(segments),
+                "audio_path": str(audio_path),
+            }
             update_episode_state(state_path, episode, transcription_status="transcribed", **result)
             results.append(result)
             processed += 1
@@ -524,19 +528,32 @@ def print_status(state_path: Path, episodes: list[dict[str, Any]]) -> None:
     entries = state.get("episodes", {})
     published_total = sum(1 for episode in episodes if episode.get("transcript_url"))
     missing_total = len(episodes) - published_total
-    published_imported = sum(1 for episode in episodes if entries.get(episode["guid"], {}).get("published_status") in {"imported", "skipped_existing"})
-    generated_done = sum(1 for episode in episodes if entries.get(episode["guid"], {}).get("transcription_status") in {"transcribed", "skipped_existing"})
-    next_published = planned_next_episode(state_path, [episode for episode in episodes if episode.get("transcript_url")], "published_status")
-    next_generated = planned_next_episode(state_path, [episode for episode in episodes if not episode.get("transcript_url")], "transcription_status")
-    print(json.dumps({
-        "episodes": len(episodes),
-        "published_transcript_episodes": published_total,
-        "missing_transcript_episodes": missing_total,
-        "published_imported_or_existing": published_imported,
-        "generated_transcribed_or_existing": generated_done,
-        "next_published": next_published["title"] if next_published else None,
-        "next_missing_to_transcribe": next_generated["title"] if next_generated else None,
-    }, indent=2))
+    published_imported = sum(
+        1 for episode in episodes if entries.get(episode["guid"], {}).get("published_status") in {"imported", "skipped_existing"}
+    )
+    generated_done = sum(
+        1 for episode in episodes if entries.get(episode["guid"], {}).get("transcription_status") in {"transcribed", "skipped_existing"}
+    )
+    next_published = planned_next_episode(
+        state_path, [episode for episode in episodes if episode.get("transcript_url")], "published_status"
+    )
+    next_generated = planned_next_episode(
+        state_path, [episode for episode in episodes if not episode.get("transcript_url")], "transcription_status"
+    )
+    print(
+        json.dumps(
+            {
+                "episodes": len(episodes),
+                "published_transcript_episodes": published_total,
+                "missing_transcript_episodes": missing_total,
+                "published_imported_or_existing": published_imported,
+                "generated_transcribed_or_existing": generated_done,
+                "next_published": next_published["title"] if next_published else None,
+                "next_missing_to_transcribe": next_generated["title"] if next_generated else None,
+            },
+            indent=2,
+        )
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -557,7 +574,16 @@ def main() -> None:
     args = build_parser().parse_args()
     show_title, episodes = discover(args.feed_url, args.state)
     if args.command == "discover":
-        print(json.dumps({"show_title": show_title, "episodes": len(episodes), "with_published_transcripts": sum(1 for episode in episodes if episode.get("transcript_url"))}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "show_title": show_title,
+                    "episodes": len(episodes),
+                    "with_published_transcripts": sum(1 for episode in episodes if episode.get("transcript_url")),
+                },
+                indent=2,
+            )
+        )
     elif args.command == "status":
         print_status(args.state, episodes)
     elif args.command == "import-published":

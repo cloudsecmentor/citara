@@ -5,7 +5,6 @@ import argparse
 import html
 import json
 import re
-import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
@@ -58,9 +57,7 @@ def parse_vtt(text: str) -> list[dict]:
     def flush() -> None:
         nonlocal current_start, current_end, current_lines
         cleaned = " ".join(
-            re.sub(r"<[^>]+>", "", line).strip()
-            for line in current_lines
-            if line.strip() and not line.strip().isdigit()
+            re.sub(r"<[^>]+>", "", line).strip() for line in current_lines if line.strip() and not line.strip().isdigit()
         ).strip()
         if cleaned and current_start is not None:
             segments.append({"start_ms": current_start, "end_ms": current_end, "text": html.unescape(cleaned)})

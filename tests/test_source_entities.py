@@ -15,7 +15,13 @@ def test_transcript_ingestion_attaches_person_and_org_entities(db_session):
             "episode_title": "BEMA Entity Test",
             "episode_url": "https://example.com/bema-entity-test",
             "entities": [
-                {"type": "organization", "slug": "bema-discipleship", "label": "BEMA Discipleship", "role": "publisher", "aliases": ["BEMA"]},
+                {
+                    "type": "organization",
+                    "slug": "bema-discipleship",
+                    "label": "BEMA Discipleship",
+                    "role": "publisher",
+                    "aliases": ["BEMA"],
+                },
                 {"type": "person", "slug": "marty-solomon", "label": "Marty Solomon", "role": "host", "aliases": ["Marty"]},
                 {"type": "topic", "slug": "isaiah", "label": "Isaiah", "role": "theme"},
             ],
@@ -69,6 +75,7 @@ def test_keyword_search_can_filter_by_person_or_org_while_query_remains_text_bas
     assert [result.source_title for result in bibleproject_results] == ["Tim Sabbath"]
     assert missing_results == []
 
+
 def test_elle_entity_can_span_bema_and_textinus_while_source_tree_filter_separates_corpora(db_session):
     from citara.core.ingestion.transcript import add_transcript_source
     from citara.core.retrieval.keyword import search_knowledge
@@ -119,4 +126,3 @@ def test_elle_entity_can_span_bema_and_textinus_while_source_tree_filter_separat
     assert {result.source_title for result in elle_results} == {"BEMA Elle Episode", "Text in Us Elle Episode"}
     assert [result.source_title for result in bema_only] == ["BEMA Elle Episode"]
     assert [result.source_title for result in textinus_only] == ["Text in Us Elle Episode"]
-

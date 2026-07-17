@@ -6,14 +6,14 @@ import html
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from citara.core.config import settings
 from citara.core.paths import source_artifact_root, source_state_root
@@ -435,9 +435,15 @@ def annotate_source_metadata(source_id: str, metadata: dict[str, Any]) -> None:
         session.commit()
 
 
-def discover(input_value: str, *, base_dir: Path = Path("."), config_path: Path = DEFAULT_CONFIG_PATH) -> tuple[dict[str, Any], list[dict[str, Any]], Path, Path]:
+def discover(
+    input_value: str, *, base_dir: Path = Path("."), config_path: Path = DEFAULT_CONFIG_PATH
+) -> tuple[dict[str, Any], list[dict[str, Any]], Path, Path]:
     config = load_config_or_url(input_value, config_path=config_path)
-    resolved = resolve_input_url(config.get("feed_url") or config.get("url")) if config.get("url") else {"feed_url": config["feed_url"], "input_kind": "rss_feed"}
+    resolved = (
+        resolve_input_url(config.get("feed_url") or config.get("url"))
+        if config.get("url")
+        else {"feed_url": config["feed_url"], "input_kind": "rss_feed"}
+    )
     feed_url = resolved["feed_url"]
     rss_text = fetch_text(feed_url, timeout=120)
     show_title, episodes = parse_source_rss_items(config, rss_text, feed_url=feed_url)
@@ -488,7 +494,9 @@ def discover(input_value: str, *, base_dir: Path = Path("."), config_path: Path 
         status_fields = {k: v for k, v in previous.items() if k.endswith("_status") or k in {"source_id", "source_title", "error"}}
         entries[key] = {**episode, **status_fields, "has_published_transcript": bool(episode.get("transcript_url"))}
     state["generated_transcript_candidate_count"] = sum(
-        1 for episode in entries.values() if episode.get("apple_generated_transcript_candidate") or not episode.get("has_published_transcript")
+        1
+        for episode in entries.values()
+        if episode.get("apple_generated_transcript_candidate") or not episode.get("has_published_transcript")
     )
     save_state(state_path, state)
     return state, episodes, state_path, paths["artifact_dir"]
@@ -553,7 +561,12 @@ def import_published(
             segments, transcript_path = fetch_transcript_segments(episode, artifact_dir)
             if not segments:
                 raise RuntimeError("published transcript produced no segments")
-            payload = {"show_title": state["show_title"], "episode_title": title, "episode_url": episode.get("episode_url"), "segments": segments}
+            payload = {
+                "show_title": state["show_title"],
+                "episode_title": title,
+                "episode_url": episode.get("episode_url"),
+                "segments": segments,
+            }
             payload_path = artifact_dir / "payloads" / f"{slugify(episode['title'])}.json"
             payload_path.parent.mkdir(parents=True, exist_ok=True)
             payload_path.write_text(json.dumps(payload, indent=2))
@@ -574,7 +587,9 @@ def import_published(
                 },
             )
             try:
-                patch_json(f"{api_url.rstrip('/')}/sources/{source_id}/preference", {"retrieval_weight": 1.0, "preference_label": "published"})
+                patch_json(
+                    f"{api_url.rstrip('/')}/sources/{source_id}/preference", {"retrieval_weight": 1.0, "preference_label": "published"}
+                )
             except Exception:
                 pass
             result = {"source_title": title, "source_id": source_id, "segments": len(segments), "transcript_path": str(transcript_path)}
@@ -632,7 +647,12 @@ def transcribe_missing(
             text_path = artifact_dir / "transcripts" / f"{slugify(episode['title'])}.generated.txt"
             text_path.parent.mkdir(parents=True, exist_ok=True)
             text_path.write_text(text)
-            payload = {"show_title": state["show_title"], "episode_title": title, "episode_url": episode.get("episode_url"), "segments": segments}
+            payload = {
+                "show_title": state["show_title"],
+                "episode_title": title,
+                "episode_url": episode.get("episode_url"),
+                "segments": segments,
+            }
             payload_path = artifact_dir / "payloads" / f"{slugify(episode['title'])}.generated.json"
             payload_path.parent.mkdir(parents=True, exist_ok=True)
             payload_path.write_text(json.dumps(payload, indent=2))
@@ -652,7 +672,9 @@ def transcribe_missing(
                 },
             )
             try:
-                patch_json(f"{api_url.rstrip('/')}/sources/{source_id}/preference", {"retrieval_weight": 0.9, "preference_label": "generated"})
+                patch_json(
+                    f"{api_url.rstrip('/')}/sources/{source_id}/preference", {"retrieval_weight": 0.9, "preference_label": "generated"}
+                )
             except Exception:
                 pass
             if not keep_audio:
@@ -690,7 +712,9 @@ def print_status(input_value: str, *, base_dir: Path = Path("."), refresh: bool 
         if config.get("slug"):
             state_path = paths_for_slug(config["slug"], base_dir=base_dir)["state"]
         else:
-            resolved = resolve_input_url(config.get("feed_url") or config.get("url")) if config.get("url") else {"feed_url": config["feed_url"]}
+            resolved = (
+                resolve_input_url(config.get("feed_url") or config.get("url")) if config.get("url") else {"feed_url": config["feed_url"]}
+            )
             show_title = config.get("show_title") or resolved.get("show_title") or Path(resolved["feed_url"]).stem
             state_path = paths_for_slug(config.get("slug") or show_title, base_dir=base_dir)["state"]
             if not state_path.exists():
@@ -703,11 +727,19 @@ def print_status(input_value: str, *, base_dir: Path = Path("."), refresh: bool 
         "state_path": str(state_path),
         "episodes": len(entries),
         "published_transcript_episodes": sum(1 for ep in entries.values() if ep.get("has_published_transcript")),
-        "published_imported_or_existing": sum(1 for ep in entries.values() if ep.get("published_status") in {"imported", "skipped_existing"}),
-        "generated_transcript_candidates": sum(1 for ep in entries.values() if ep.get("apple_generated_transcript_candidate") or not ep.get("has_published_transcript")),
+        "published_imported_or_existing": sum(
+            1 for ep in entries.values() if ep.get("published_status") in {"imported", "skipped_existing"}
+        ),
+        "generated_transcript_candidates": sum(
+            1 for ep in entries.values() if ep.get("apple_generated_transcript_candidate") or not ep.get("has_published_transcript")
+        ),
         "target_apple_episode_adam_id": state.get("target_apple_episode_adam_id"),
-        "target_apple_episode_found": any(ep.get("apple_episode_adam_id") == state.get("target_apple_episode_adam_id") for ep in entries.values()),
-        "missing_transcript": sum(1 for ep in entries.values() if ep.get("published_status") == "missing_transcript" or not ep.get("has_published_transcript")),
+        "target_apple_episode_found": any(
+            ep.get("apple_episode_adam_id") == state.get("target_apple_episode_adam_id") for ep in entries.values()
+        ),
+        "missing_transcript": sum(
+            1 for ep in entries.values() if ep.get("published_status") == "missing_transcript" or not ep.get("has_published_transcript")
+        ),
         "errors": sum(1 for ep in entries.values() if ep.get("published_status") == "error"),
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -735,7 +767,18 @@ def run_configured_connector_command(args: argparse.Namespace, config: dict[str,
         show_title, episodes = module.discover(feed_url, state_path)
 
     if args.command == "discover":
-        print(json.dumps({"show_title": show_title, "episodes": len(episodes), "state_path": str(state_path), "artifact_dir": str(artifact_dir), "connector": connector}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "show_title": show_title,
+                    "episodes": len(episodes),
+                    "state_path": str(state_path),
+                    "artifact_dir": str(artifact_dir),
+                    "connector": connector,
+                },
+                indent=2,
+            )
+        )
         return True
     if args.command == "status":
         module.print_status(state_path, episodes)
@@ -749,7 +792,9 @@ def run_configured_connector_command(args: argparse.Namespace, config: dict[str,
     if args.command == "transcribe-missing":
         if not hasattr(module, "transcribe_missing"):
             raise RuntimeError(f"Connector {connector!r} does not support transcribe-missing")
-        results = module.transcribe_missing(episodes, state_path, artifact_dir, args.api_url, args.model, args.device, args.compute_type, args.limit)
+        results = module.transcribe_missing(
+            episodes, state_path, artifact_dir, args.api_url, args.model, args.device, args.compute_type, args.limit
+        )
         print(json.dumps({"transcribed_this_run": len(results), "results": results[:5]}, indent=2))
         return True
     return False
@@ -763,7 +808,18 @@ def run_command(args: argparse.Namespace) -> int:
         return 0
     if args.command == "discover":
         state, _, state_path, artifact_dir = discover(args.input, base_dir=base_dir, config_path=config_path)
-        print(json.dumps({"show_title": state.get("show_title"), "episodes": state.get("episode_count"), "published_transcript_count": state.get("published_transcript_count"), "state_path": str(state_path), "artifact_dir": str(artifact_dir)}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "show_title": state.get("show_title"),
+                    "episodes": state.get("episode_count"),
+                    "published_transcript_count": state.get("published_transcript_count"),
+                    "state_path": str(state_path),
+                    "artifact_dir": str(artifact_dir),
+                },
+                indent=2,
+            )
+        )
         return 0
     if args.command == "status":
         print_status(args.input, base_dir=base_dir, refresh=args.refresh, config_path=config_path)

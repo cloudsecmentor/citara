@@ -45,9 +45,7 @@ def vector_search(
     )
     if source_language:
         if include_und:
-            statement = statement.where(
-                or_(Source.language == source_language, Source.language.is_(None))
-            )
+            statement = statement.where(or_(Source.language == source_language, Source.language.is_(None)))
         else:
             statement = statement.where(Source.language == source_language)
     if source_tree_slug:

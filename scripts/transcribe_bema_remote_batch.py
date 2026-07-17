@@ -297,11 +297,16 @@ def main() -> None:
                 raise RuntimeError("stats JSON validation failed")
 
             stats_data["local_download_seconds"] = dl_seconds
-            (local_out / f"e{number:03d}-transcribe-stats.json").write_text(
-                json.dumps(stats_data, indent=2, ensure_ascii=False) + "\n"
-            )
+            (local_out / f"e{number:03d}-transcribe-stats.json").write_text(json.dumps(stats_data, indent=2, ensure_ascii=False) + "\n")
 
-            run(ssh_args(args.ssh_key, args.worker, f"rm -f {shlex.quote(str(remote_audio))} {shlex.quote(str(remote_out / f'e{number:03d}.mp3'))}"), timeout=60)
+            run(
+                ssh_args(
+                    args.ssh_key,
+                    args.worker,
+                    f"rm -f {shlex.quote(str(remote_audio))} {shlex.quote(str(remote_out / f'e{number:03d}.mp3'))}",
+                ),
+                timeout=60,
+            )
 
             summary.append({"episode": number, "status": "transcribed", "stats": stats_data})
             successful_eps.append(number)

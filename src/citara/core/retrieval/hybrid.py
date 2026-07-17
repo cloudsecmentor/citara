@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from sqlalchemy.orm import Session
+
 from citara.core.config import settings
 from citara.core.retrieval.keyword import SearchResult, search_knowledge
 from citara.core.retrieval.vector import vector_search
-from sqlalchemy.orm import Session
 
 
 def hybrid_search(

@@ -9,12 +9,7 @@ from citara.core.models import Chunk, Embedding, IngestionJob, Source, SourceEnt
 
 def list_sources(session: Session, *, tenant_id: str = settings.default_tenant_id, limit: int = 50) -> list[Source]:
     return list(
-        session.execute(
-            select(Source)
-            .where(Source.tenant_id == tenant_id)
-            .order_by(Source.created_at.desc())
-            .limit(limit)
-        ).scalars()
+        session.execute(select(Source).where(Source.tenant_id == tenant_id).order_by(Source.created_at.desc()).limit(limit)).scalars()
     )
 
 

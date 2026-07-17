@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from citara.core.models import IngestionJob
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def record_succeeded_ingestion_job(
@@ -51,10 +51,7 @@ def list_ingestion_jobs(
 ) -> list[IngestionJob]:
     return list(
         session.execute(
-            select(IngestionJob)
-            .where(IngestionJob.tenant_id == tenant_id)
-            .order_by(IngestionJob.created_at.desc())
-            .limit(limit)
+            select(IngestionJob).where(IngestionJob.tenant_id == tenant_id).order_by(IngestionJob.created_at.desc()).limit(limit)
         ).scalars()
     )
 

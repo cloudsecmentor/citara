@@ -145,7 +145,7 @@ def download(url: str, dest: Path, *, attempts: int = 3) -> float:
         except Exception as exc:  # transient 5xx/socket failures are common enough to retry
             last_error = exc
             if attempt < attempts:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
     raise RuntimeError(f"audio download failed after {attempts} attempts: {last_error}")
 
 
@@ -226,7 +226,11 @@ def main() -> None:
             write_summary()
             continue
         if args.skip_existing and artifact_complete(local_out, number):
-            update_episode_state(state_path, guid, {"transcription_status": "skipped_existing", "local_raw_path": str(local_out / f"e{number:03d}-oai-raw.json")})
+            update_episode_state(
+                state_path,
+                guid,
+                {"transcription_status": "skipped_existing", "local_raw_path": str(local_out / f"e{number:03d}-oai-raw.json")},
+            )
             summary.append({"episode": number, "title": title, "status": "skipped_existing_artifact"})
             write_summary()
             continue
@@ -315,7 +319,14 @@ def main() -> None:
             stats["has_published_transcript"] = False
             stats_path.write_text(json.dumps(stats, indent=2, ensure_ascii=False) + "\n")
 
-            run(ssh_args(args.ssh_key, args.worker, f"rm -f {shlex.quote(str(remote_audio))} {shlex.quote(str(remote_out / f'e{number:03d}.mp3'))}"), timeout=60)
+            run(
+                ssh_args(
+                    args.ssh_key,
+                    args.worker,
+                    f"rm -f {shlex.quote(str(remote_audio))} {shlex.quote(str(remote_out / f'e{number:03d}.mp3'))}",
+                ),
+                timeout=60,
+            )
 
             update_episode_state(
                 state_path,
@@ -347,7 +358,11 @@ def main() -> None:
             write_summary()
             continue
 
-    print(json.dumps({"summary_path": str(summary_path), "episodes": summary, "successful_episodes": successful}, indent=2, ensure_ascii=False))
+    print(
+        json.dumps(
+            {"summary_path": str(summary_path), "episodes": summary, "successful_episodes": successful}, indent=2, ensure_ascii=False
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from typing import Tuple
 
 # Very lightweight, dependency-free language hinting based on Unicode ranges.
 # This is not meant to be perfect language ID; it's only used to select a
@@ -16,7 +15,7 @@ _DEVANAGARI_RE = re.compile(r"[\u0900-\u097F]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
 
 
-def detect_language_code(text: str) -> Tuple[str | None, float]:
+def detect_language_code(text: str) -> tuple[str | None, float]:
     """Return (language_code, confidence).
 
     Possible language codes: 'en', 'he', 'ru', 'ar', 'zh', 'ko', 'hi', or None.

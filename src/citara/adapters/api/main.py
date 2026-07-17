@@ -60,7 +60,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     @app.post("/sources/text")
-    def add_text(payload: TextSourceRequest, session: Session = Depends(get_session)) -> dict[str, str]:
+    def add_text(payload: TextSourceRequest, session: Session = Depends(get_session)) -> dict[str, str | None]:
         source = add_text_source(
             session,
             title=payload.title,
@@ -122,7 +122,9 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/sources/summary-context")
-    def resolved_summary_context(q: str, preference: str = "current", max_chunks: int | None = None, session: Session = Depends(get_session)) -> dict:
+    def resolved_summary_context(
+        q: str, preference: str = "current", max_chunks: int | None = None, session: Session = Depends(get_session)
+    ) -> dict:
         context = resolve_summary_context(session, query=q, preference=preference, max_chunks=max_chunks)
         if context is None:
             raise HTTPException(status_code=404, detail="Source not found")

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from citara.core.config import settings
 from citara.core.models import Base
 
-
 engine = create_engine(settings.database_url, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 

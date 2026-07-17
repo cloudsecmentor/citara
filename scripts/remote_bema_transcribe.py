@@ -36,7 +36,7 @@ def _clean_text(value: object) -> str:
 
 
 def _ends_sentence(text: str) -> bool:
-    return text.rstrip().endswith((".", "?", "!", '.”', '?"', '!"', ".'", "?'", "!'"))
+    return text.rstrip().endswith((".", "?", "!", ".”", '?"', '!"', ".'", "?'", "!'"))
 
 
 def _choose_chunk_end(
@@ -112,11 +112,7 @@ def build_legacy_chunked(
         {
             "text": text,
             "start": float(segment.get("start") or 0.0),
-            "word_start": (
-                float((segment.get("words") or [])[0].get("start") or 0.0)
-                if (segment.get("words") or [])
-                else None
-            ),
+            "word_start": (float((segment.get("words") or [])[0].get("start") or 0.0) if (segment.get("words") or []) else None),
         }
         for segment in segments
         if (text := _clean_text(segment.get("text")))
@@ -263,7 +259,7 @@ def main() -> None:
                 continue
 
             words: list[dict[str, float | str]] = []
-            for w in (getattr(segment, "words", None) or []):
+            for w in getattr(segment, "words", None) or []:
                 words.append(
                     {
                         "start": float(getattr(w, "start", 0.0) or 0.0),
