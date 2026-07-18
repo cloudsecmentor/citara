@@ -174,6 +174,12 @@ def main() -> None:
     parser.add_argument("--beam-size", type=int, default=5)
     parser.add_argument("--best-of", type=int, default=1)
     parser.add_argument("--transcribe-timeout-seconds", type=int, default=28800)
+    parser.add_argument(
+        "--inter-episode-delay-fraction",
+        type=float,
+        default=0.10,
+        help="Sleep this fraction of the just-finished episode processing wall time before starting the next transcription episode.",
+    )
     parser.add_argument("--skip-existing", action=argparse.BooleanOptionalAction, default=True)
     args = parser.parse_args()
 
@@ -203,6 +209,23 @@ def main() -> None:
         tmp = summary_path.with_suffix(".tmp")
         tmp.write_text(json.dumps({"episodes": summary, "successful_episodes": successful}, indent=2, ensure_ascii=False) + "\n")
         os.replace(tmp, summary_path)
+
+    if args.inter_episode_delay_fraction < 0:
+        raise ValueError("--inter-episode-delay-fraction must be non-negative")
+
+    def sleep_after_episode(episode_start: float, number: int, status: str) -> None:
+        if args.inter_episode_delay_fraction <= 0:
+            return
+        elapsed = time.time() - episode_start
+        delay = elapsed * args.inter_episode_delay_fraction
+        if delay <= 0:
+            return
+        print(
+            f"Episode {number:03d} {status}; processing wall time {elapsed:.1f}s. "
+            f"Sleeping {delay:.1f}s ({args.inter_episode_delay_fraction:.0%}) before next episode.",
+            flush=True,
+        )
+        time.sleep(delay)
 
     processed_missing = 0
     for number, episode in enumerate(episodes, start=1):
@@ -245,6 +268,7 @@ def main() -> None:
         page_url = episode.get("episode_url") or episode.get("rss_link") or "https://bibleproject.com/podcast/"
         audio_url = episode["audio_url"]
         remote_audio = remote_out / f"bibleproject{number:03d}.mp3"
+        episode_start = time.time()
 
         try:
             update_episode_state(
@@ -346,16 +370,19 @@ def main() -> None:
             successful.append(number)
             processed_missing += 1
             write_summary()
+            sleep_after_episode(episode_start, number, "transcribed")
         except subprocess.CalledProcessError as exc:
             error = f"ssh/scp failed: {exc.returncode}: {exc.stdout[-2000:] if exc.stdout else ''}"
             update_episode_state(state_path, guid, {"transcription_status": "error", "error": error})
             summary.append({"episode": number, "title": title, "status": "error", "error": error})
             write_summary()
+            sleep_after_episode(episode_start, number, "errored")
             continue
         except Exception as exc:
             update_episode_state(state_path, guid, {"transcription_status": "error", "error": str(exc)})
             summary.append({"episode": number, "title": title, "status": "error", "error": str(exc)})
             write_summary()
+            sleep_after_episode(episode_start, number, "errored")
             continue
 
     print(
