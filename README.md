@@ -60,8 +60,15 @@ Users are responsible for ensuring they have the right to ingest, store, process
 Install dependencies and run tests:
 
 ```bash
-uv sync
+uv sync --extra dev
 uv run pytest -q
+```
+
+Optional local hooks:
+
+```bash
+uv run pre-commit install
+uv run pre-commit install --hook-type pre-push
 ```
 
 ## Database migrations

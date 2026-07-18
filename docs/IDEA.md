@@ -4,8 +4,8 @@
 > "Hermes Knowledge Vault" and assumed a specific personal agent named "Hermes" as the primary
 > frontend. The project has since been renamed **Citara** and generalized to be **agent-agnostic**:
 > wherever this document says "Hermes", read it as "the user's AI agent" (Claude, Cursor, or any
-> MCP client). The design intent is unchanged. Also note the current license is source-available
-> (PolyForm Noncommercial), not OSI open source, despite the wording below.
+> MCP client). The current licensing model is **source-available** under PolyForm Noncommercial,
+> not OSI open source.
 
 ## 1. Product summary
 

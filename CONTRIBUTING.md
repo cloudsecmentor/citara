@@ -7,8 +7,15 @@ This project is source-available under the PolyForm Noncommercial License 1.0.0.
 ## Development setup
 
 ```bash
-uv sync
+uv sync --extra dev
 uv run pytest -q
+```
+
+Install optional local hooks:
+
+```bash
+uv run pre-commit install
+uv run pre-commit install --hook-type pre-push
 ```
 
 Run the Docker stack:

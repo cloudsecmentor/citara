@@ -27,10 +27,10 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
   - [x] `ruff` (lint + format, line-length 140; `E501` off, `B008` allowed for FastAPI `Depends`, `E402` allowed in scripts/conftest). Whole tree linted and formatted; the lint pass surfaced real `NameError` bugs (missing `sys`/`os` imports in connector error paths).
   - [x] `mypy` on `src/` (lenient baseline: `ignore_missing_imports`, `check_untyped_defs`; zero errors).
   - [x] Wire them into CI.
-- [ ] **Add `.pre-commit-config.yaml`** (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, mypy optional).
-- [ ] **Add `CODE_OF_CONDUCT.md`** (Contributor Covenant) — standard for public repos.
-- [ ] **Add issue/PR templates** under `.github/` (bug report, feature request, PR checklist).
-- [ ] **Reconcile "open source" wording.** PolyForm Noncommercial is source-available, not OSI. Make sure README, `pyproject` classifiers, and `docs/IDEA.md` (which still says "open-source") are consistent with the actual license.
+- [x] **Add `.pre-commit-config.yaml`** (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, mypy optional).
+- [x] **Add `CODE_OF_CONDUCT.md`** (Contributor Covenant) — standard for public repos.
+- [x] **Add issue/PR templates** under `.github/` (bug report, feature request, PR checklist).
+- [x] **Reconcile "open source" wording.** PolyForm Noncommercial is source-available, not OSI; README, `pyproject` classifiers, and `docs/IDEA.md` now consistently state source-available/noncommercial licensing.
 
 ## P2 — Product / functional gaps
 
