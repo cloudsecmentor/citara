@@ -21,7 +21,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-DEFAULT_CITARA_ROOT = Path("../citara")
+DEFAULT_CITARA_ROOT = Path("../citara-data")
 DEFAULT_OPENAI_RAW = Path("../citara-data/source-artifacts/bema/remote-openai")
 
 # Ensure direct script runs use the renamed sibling data folder even when no .env is loaded.

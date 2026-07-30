@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-DEFAULT_CITARA_ROOT = Path("../citara")
+DEFAULT_CITARA_ROOT = Path("../citara-data")
 
 from sqlalchemy import create_engine, delete, select, text
 from sqlalchemy.engine import Engine

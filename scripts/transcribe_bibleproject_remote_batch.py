@@ -28,8 +28,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-DEFAULT_CITARA_ROOT = Path("../citara")
-DEFAULT_REPO = Path("../hermes-knowledge-vault")
+DEFAULT_CITARA_ROOT = Path("../citara-data")
+DEFAULT_REPO = Path("../citara")
 DEFAULT_WORKER = "user@worker.example.invalid"
 DEFAULT_SSH_KEY = Path("~/.ssh/id_ed25519").expanduser()
 DEFAULT_REMOTE_ROOT = Path("/opt/citara-worker")

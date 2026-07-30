@@ -15,7 +15,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-DEFAULT_CITARA_ROOT = Path("../citara")
+DEFAULT_CITARA_ROOT = Path("../citara-data")
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{DEFAULT_CITARA_ROOT / 'citara.db'}")
 os.environ.setdefault("SOURCE_ARTIFACT_ROOT", str(DEFAULT_CITARA_ROOT / "source-artifacts"))
 os.environ.setdefault("SOURCE_STATE_ROOT", str(DEFAULT_CITARA_ROOT / "import-state"))
