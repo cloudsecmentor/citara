@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -377,9 +378,21 @@ def organize_states() -> list[dict[str, Any]]:
     return out
 
 
-def build_summary(records: list[dict[str, Any]], state_records: list[dict[str, Any]]) -> dict[str, Any]:
+def trees_missing_source_tree_json(artifact_root: Path) -> list[str]:
+    """Tree slugs under artifact_root that have no source-tree.json.
+
+    Computed fresh from disk (not from the record list) so it reflects reality in
+    both the organize and rebuild paths, including trees that carry zero records.
+    """
+    if not artifact_root.exists():
+        return []
+    return sorted(entry.name for entry in artifact_root.iterdir() if entry.is_dir() and not (entry / "source-tree.json").exists())
+
+
+def build_summary(records: list[dict[str, Any]], state_records: list[dict[str, Any]], *, mode: str = "organized") -> dict[str, Any]:
     summary: dict[str, Any] = {
         "schema": "citara.organization_manifest.v1",
+        "mode": mode,
         "created_at": datetime.now(UTC).isoformat(),
         "repo": str(REPO),
         "citara_root": str(Citara),
@@ -389,6 +402,7 @@ def build_summary(records: list[dict[str, Any]], state_records: list[dict[str, A
         "state_count": len(state_records),
         "artifact_counts_by_tree": {},
         "artifact_counts_by_kind": {},
+        "trees_missing_source_tree_json": trees_missing_source_tree_json(ARTIFACT_ROOT),
         "records": records,
         "state_records": state_records,
     }
@@ -398,7 +412,164 @@ def build_summary(records: list[dict[str, Any]], state_records: list[dict[str, A
     return summary
 
 
-def organize_all(*, repo: Path = REPO, artifact_root: Path = ARTIFACT_ROOT, state_root: Path = STATE_ROOT) -> dict[str, Any]:
+class ManifestWriteRefused(RuntimeError):
+    """Raised when a write would silently replace a populated manifest with an empty one."""
+
+
+def guard_manifest_write(new_artifact_count: int, *, manifest_path: Path, force: bool) -> None:
+    """Refuse to overwrite a populated manifest with a 0-record one.
+
+    This is the fix for the actual data-loss bug: organize_all() used to write an
+    unconditional summary over MANIFEST_PATH, so an emptied staging dir (or, for
+    rebuild, an emptied/missing artifact tree) silently wiped a fully populated
+    manifest. force=True is the explicit opt-out for when that is truly intended
+    (e.g. bootstrapping a brand-new, still-empty tree over a stale manifest).
+    """
+    if force or new_artifact_count > 0 or not manifest_path.exists():
+        return
+    try:
+        existing = read_json(manifest_path)
+    except (OSError, json.JSONDecodeError):
+        return
+    existing_count = existing.get("artifact_count", 0)
+    if existing_count > 0:
+        raise ManifestWriteRefused(
+            f"Refusing to write {manifest_path}: the new manifest has 0 records but the "
+            f"existing one has {existing_count}. This usually means the source data was "
+            "emptied or moved rather than actually reorganized -- writing now would "
+            "silently destroy the only copy of the index. Re-run with --force if you "
+            "really intend to replace it with an empty manifest."
+        )
+
+
+# --- rebuild-from-artifacts mode -------------------------------------------------
+#
+# organize_all() builds records by scanning data/ (a staging dir) and knows the
+# provenance of each file because it just wrote it. Rebuild instead walks the
+# already-organized source-artifacts / import-state trees directly, so it can
+# recover everything except the one thing that was never stored on disk: the
+# original data/ path. That is salvaged on a best-effort basis from each item's
+# own source.json ("original_path"), which real data shows is only present on
+# ~55% of items; the rest get source: null rather than a fabricated value.
+
+_OAI_RAW_CHUNKED_RE = re.compile(r"^e\d+-oai-raw-chunked\.json$")
+_OAI_RAW_RE = re.compile(r"^e\d+-oai-raw\.json$")
+_TRANSCRIBE_STATS_RE = re.compile(r"^e\d+-transcribe-stats\.json$")
+
+# Direct filename -> kind. Reuses the three literals organize_*() already emits
+# (payload_json, source_page_html, state_json) wherever a rebuilt file is
+# genuinely the same artifact those functions produce, so organized and
+# rebuilt manifests stay comparable on artifact_counts_by_kind.
+_FILENAME_KIND_MAP: dict[str, str] = {
+    "source.json": "source_metadata_json",
+    "source-tree.json": "source_tree_json",
+    "transcript.txt": "transcript_text",
+    "transcript.normalized.json": "transcript_normalized_json",
+    # Both are verbatim copies of the original import payload (see
+    # organize_payload_json), so both carry the existing "payload_json" kind.
+    "import-payload.json": "payload_json",
+    "transcript.raw.json": "payload_json",
+    "transcript.source.txt": "transcript_source_txt",
+    "transcript.source.pdf": "transcript_source_pdf",
+    "source-page.html": "source_page_html",
+}
+
+
+def classify_artifact_kind(filename: str) -> str:
+    kind = _FILENAME_KIND_MAP.get(filename)
+    if kind is not None:
+        return kind
+    if _OAI_RAW_CHUNKED_RE.match(filename):
+        return "oai_raw_chunked_json"
+    if _OAI_RAW_RE.match(filename):
+        return "oai_raw_json"
+    if _TRANSCRIBE_STATS_RE.match(filename):
+        return "transcribe_stats_json"
+    return "other"
+
+
+def iter_tree_files(root: Path) -> list[Path]:
+    if not root.exists():
+        return []
+    return sorted(p for p in root.rglob("*") if p.is_file() and not any(part.startswith(".") for part in p.relative_to(root).parts))
+
+
+def item_slug_from_parts(rel_parts: tuple[str, ...]) -> str | None:
+    if len(rel_parts) >= 3 and rel_parts[1] == "items":
+        return rel_parts[2]
+    return None
+
+
+def original_path_from_sibling_source_json(path: Path) -> str | None:
+    sibling = path.parent / "source.json"
+    if not sibling.exists():
+        return None
+    try:
+        data = read_json(sibling)
+    except (OSError, json.JSONDecodeError):
+        return None
+    original_path = data.get("original_path")
+    return original_path if isinstance(original_path, str) else None
+
+
+def rebuild_artifact_record(path: Path, *, hash_files: bool) -> dict[str, Any]:
+    rel_parts = path.relative_to(ARTIFACT_ROOT).parts
+    record: dict[str, Any] = {
+        "source": original_path_from_sibling_source_json(path),
+        "target": str(path),
+        "tree": rel_parts[0],
+        "kind": classify_artifact_kind(path.name),
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path) if hash_files else None,
+    }
+    item = item_slug_from_parts(rel_parts)
+    if item is not None:
+        record["item"] = item
+    return record
+
+
+def rebuild_state_record(path: Path, *, hash_files: bool) -> dict[str, Any]:
+    # There is no salvage mechanism for state file provenance (no sibling metadata
+    # carries it), so source is always null here -- same "do not invent it" rule
+    # as artifact records, applied honestly rather than guessing.
+    return {
+        "source": None,
+        "target": str(path),
+        "kind": "state_json",
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path) if hash_files else None,
+    }
+
+
+def rebuild_from_artifacts(
+    *,
+    repo: Path = REPO,
+    artifact_root: Path = ARTIFACT_ROOT,
+    state_root: Path = STATE_ROOT,
+    hash_files: bool = True,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Rebuild organization-manifest.json by walking the existing artifact/state trees.
+
+    Unlike organize_all(), this never writes into artifact_root or state_root --
+    it only reads them and (subject to guard_manifest_write) writes MANIFEST_PATH.
+    Trees missing source-tree.json are reported via
+    summary["trees_missing_source_tree_json"] rather than being synthesized, to
+    keep rebuild strictly read-only against a tree that may already be in a
+    partially-known state.
+    """
+    configure_paths(repo=repo, artifact_root=artifact_root, state_root=state_root)
+    records = [rebuild_artifact_record(p, hash_files=hash_files) for p in iter_tree_files(ARTIFACT_ROOT)]
+    state_records = [rebuild_state_record(p, hash_files=hash_files) for p in iter_tree_files(STATE_ROOT)]
+    summary = build_summary(records, state_records, mode="rebuilt")
+    guard_manifest_write(summary["artifact_count"], manifest_path=MANIFEST_PATH, force=force)
+    write_json(MANIFEST_PATH, summary)
+    return summary
+
+
+def organize_all(
+    *, repo: Path = REPO, artifact_root: Path = ARTIFACT_ROOT, state_root: Path = STATE_ROOT, force: bool = False
+) -> dict[str, Any]:
     configure_paths(repo=repo, artifact_root=artifact_root, state_root=state_root)
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
     STATE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -410,19 +581,68 @@ def organize_all(*, repo: Path = REPO, artifact_root: Path = ARTIFACT_ROOT, stat
     records.extend(organize_generic_podcast_artifacts())
     state_records = organize_states()
     summary = build_summary(records, state_records)
+    guard_manifest_write(summary["artifact_count"], manifest_path=MANIFEST_PATH, force=force)
     write_json(MANIFEST_PATH, summary)
     return summary
 
 
-def main() -> None:
-    summary = organize_all(repo=REPO, artifact_root=ARTIFACT_ROOT, state_root=STATE_ROOT)
-    print(
-        json.dumps(
-            {k: summary[k] for k in ["citara_root", "artifact_count", "state_count", "artifact_counts_by_tree", "artifact_counts_by_kind"]},
-            indent=2,
-        )
+_SUMMARY_PRINT_KEYS = [
+    "citara_root",
+    "mode",
+    "artifact_count",
+    "state_count",
+    "artifact_counts_by_tree",
+    "artifact_counts_by_kind",
+    "trees_missing_source_tree_json",
+]
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Organize Citara source artifacts, or rebuild the manifest from an existing tree")
+    parser.add_argument(
+        "--rebuild-from-artifacts",
+        action="store_true",
+        help="Rebuild organization-manifest.json by walking the existing source-artifacts/import-state "
+        "trees instead of organizing files from data/. Use this when data/ has already been emptied.",
     )
+    parser.add_argument(
+        "--no-hash",
+        action="store_true",
+        help="Skip sha256 hashing (rebuild mode only). The real tree is ~1.3GB / ~10k files and hashing takes minutes.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow writing a 0-record manifest over an existing manifest that has records.",
+    )
+    return parser
+
+
+def main(
+    argv: list[str] | None = None,
+    *,
+    repo: Path = REPO,
+    artifact_root: Path = ARTIFACT_ROOT,
+    state_root: Path = STATE_ROOT,
+) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        if args.rebuild_from_artifacts:
+            summary = rebuild_from_artifacts(
+                repo=repo,
+                artifact_root=artifact_root,
+                state_root=state_root,
+                hash_files=not args.no_hash,
+                force=args.force,
+            )
+        else:
+            summary = organize_all(repo=repo, artifact_root=artifact_root, state_root=state_root, force=args.force)
+    except ManifestWriteRefused as exc:
+        print(str(exc))
+        return 2
+    print(json.dumps({k: summary[k] for k in _SUMMARY_PRINT_KEYS}, indent=2))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
