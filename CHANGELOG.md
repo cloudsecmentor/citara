@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-04
+
+First tagged release. Everything below accumulated before Citara had a release process; it is
+recorded here as the `0.1.0` baseline.
+
 ### Added
 
 - Added repository hygiene tooling with pre-commit hooks for Ruff, formatting, file hygiene, large-file checks, and secret-key detection.
