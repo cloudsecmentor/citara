@@ -330,9 +330,7 @@ def test_manifest_can_configure_another_podcast_corpus(tmp_path: Path) -> None:
             "acronym": "PL",
             "aliases": ["Parsha Lab"],
             "tags": ["aleph-beta", "parsha-lab"],
-            "entities": [
-                {"type": "organization", "slug": "aleph-beta", "label": "Aleph Beta", "role": "publisher"}
-            ],
+            "entities": [{"type": "organization", "slug": "aleph-beta", "label": "Aleph Beta", "role": "publisher"}],
             "episodes": [item],
         },
     )

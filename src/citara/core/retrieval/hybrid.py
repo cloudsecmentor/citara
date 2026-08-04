@@ -11,6 +11,43 @@ from citara.core.retrieval.vector import vector_search
 RRF_K = 60
 
 
+def rrf_fuse(*result_lists: list[SearchResult], limit: int = 10) -> list[SearchResult]:
+    """Fuse any number of ranked `SearchResult` lists by reciprocal rank.
+
+    Rank-based fusion means the inputs don't need comparable score scales --
+    it works just as well across two runs of the *same* backend against
+    different query strings (e.g. an original query and its translation,
+    see `context_pack.search_by_mode`) as it does across keyword vs. vector
+    scores.
+    """
+
+    merged: dict[str, SearchResult] = {}
+    scores: dict[str, float] = {}
+    for results in result_lists:
+        for rank, result in enumerate(results, start=1):
+            merged.setdefault(result.chunk_id, result)
+            scores[result.chunk_id] = scores.get(result.chunk_id, 0.0) + 1.0 / (RRF_K + rank)
+
+    ranked = sorted(merged.values(), key=lambda result: (-scores[result.chunk_id], result.source_title, result.chunk_id))
+    return [
+        SearchResult(
+            chunk_id=result.chunk_id,
+            source_id=result.source_id,
+            source_title=result.source_title,
+            source_type=result.source_type,
+            text=result.text,
+            score=float(scores[result.chunk_id]),
+            citation_label=result.citation_label,
+            canonical_url=result.canonical_url,
+            timestamp_url=result.timestamp_url,
+            page_number=result.page_number,
+            start_ms=result.start_ms,
+            end_ms=result.end_ms,
+        )
+        for result in ranked[:limit]
+    ]
+
+
 def hybrid_search(
     session: Session,
     *,
@@ -46,28 +83,4 @@ def hybrid_search(
     # Keyword and vector scores live on incomparable scales (term counts vs
     # cosine similarity), so fuse by rank instead of adding raw scores.
     # Source retrieval weights already shaped each backend's ranking.
-    merged: dict[str, SearchResult] = {}
-    scores: dict[str, float] = {}
-    for results in (keyword_results, vector_results):
-        for rank, result in enumerate(results, start=1):
-            merged.setdefault(result.chunk_id, result)
-            scores[result.chunk_id] = scores.get(result.chunk_id, 0.0) + 1.0 / (RRF_K + rank)
-
-    ranked = sorted(merged.values(), key=lambda result: (-scores[result.chunk_id], result.source_title, result.chunk_id))
-    return [
-        SearchResult(
-            chunk_id=result.chunk_id,
-            source_id=result.source_id,
-            source_title=result.source_title,
-            source_type=result.source_type,
-            text=result.text,
-            score=float(scores[result.chunk_id]),
-            citation_label=result.citation_label,
-            canonical_url=result.canonical_url,
-            timestamp_url=result.timestamp_url,
-            page_number=result.page_number,
-            start_ms=result.start_ms,
-            end_ms=result.end_ms,
-        )
-        for result in ranked[:limit]
-    ]
+    return rrf_fuse(keyword_results, vector_results, limit=limit)

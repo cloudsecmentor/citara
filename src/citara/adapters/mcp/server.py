@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from citara import __version__
 from citara.core.db import SessionLocal, init_db
 from citara.core.entities import list_entities as core_list_entities
 from citara.core.entities import list_source_entities as core_list_source_entities
@@ -11,6 +12,7 @@ from citara.core.jobs import get_ingestion_job as core_get_ingestion_job
 from citara.core.jobs import list_ingestion_jobs as core_list_ingestion_jobs
 from citara.core.jobs import list_ingestion_jobs_for_source as core_list_ingestion_jobs_for_source
 from citara.core.jobs import serialize_ingestion_job
+from citara.core.retrieval.context_pack import query_language_notice as core_query_language_notice
 from citara.core.retrieval.context_pack import retrieve_context_pack as core_retrieve_context_pack
 from citara.core.retrieval.context_pack import search_by_mode as core_search_by_mode
 from citara.core.sources import delete_source as core_delete_source
@@ -42,7 +44,7 @@ def create_mcp_server() -> FastMCP:
 
     @server.tool()
     def ping() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "version": __version__}
 
     @server.tool()
     def add_text_source(title: str, text: str, collection_id: str | None = None) -> dict[str, str | None]:
@@ -69,9 +71,37 @@ def create_mcp_server() -> FastMCP:
         source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
+        query_translated: str | None = None,
+        query_language: str | None = None,
     ) -> dict:
+        """Search the knowledge base and return citation-backed chunks.
+
+        If `query` is not in the corpus's language (the corpus is English by
+        default), pass `query_translated` with an English translation of the
+        query -- you are already a multilingual model holding the user's
+        turn, so this costs nothing and is the preferred path. Citara then
+        searches both the original and translated query and fuses the
+        results, so proper nouns that only survive in the original are not
+        lost. `query_language` optionally states the language of `query`
+        (e.g. "ru") when you already know it; otherwise Citara detects it.
+        A `notice` is included in the response when the query couldn't be
+        tokenized or its detected language has no matching sources, so an
+        empty `results` list is explainable rather than silent.
+        """
         init_db()
         with SessionLocal() as session:
+            results = core_search_by_mode(
+                session,
+                query=query,
+                limit=limit,
+                mode=mode,
+                entity_slugs=entity_slugs,
+                source_tree_slug=source_tree_slug,
+                language_policy=language_policy,
+                language=language,
+                query_translated=query_translated,
+                query_language=query_language,
+            )
             return {
                 "results": [
                     {
@@ -84,17 +114,9 @@ def create_mcp_server() -> FastMCP:
                         "timestamp_url": result.timestamp_url,
                         "score": result.score,
                     }
-                    for result in core_search_by_mode(
-                        session,
-                        query=query,
-                        limit=limit,
-                        mode=mode,
-                        entity_slugs=entity_slugs,
-                        source_tree_slug=source_tree_slug,
-                        language_policy=language_policy,
-                        language=language,
-                    )
-                ]
+                    for result in results
+                ],
+                "notice": core_query_language_notice(session, query=query),
             }
 
     @server.tool()
@@ -106,7 +128,24 @@ def create_mcp_server() -> FastMCP:
         source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
+        query_translated: str | None = None,
+        query_language: str | None = None,
+        translate_quotes: bool = False,
     ) -> dict:
+        """Retrieve a compact, citation-backed context pack for a query.
+
+        If `query` is not in the corpus's language, pass `query_translated`
+        with an English translation alongside the original -- see
+        `search_knowledge` for why this is the preferred path. The response
+        includes `response_language` (the language to answer the user in)
+        and a `response_language_directive`; retrieved `chunks[].text` is
+        always the verbatim, untranslated source string. Set
+        `translate_quotes=True` to additionally receive
+        `chunks[].text_translated` and `translation_provenance` -- these are
+        added alongside `text`, never in place of it. A `notice` explains an
+        empty/near-empty `chunks` list caused by a query/corpus language
+        mismatch.
+        """
         init_db()
         with SessionLocal() as session:
             return core_retrieve_context_pack(
@@ -118,6 +157,9 @@ def create_mcp_server() -> FastMCP:
                 source_tree_slug=source_tree_slug,
                 language_policy=language_policy,
                 language=language,
+                query_translated=query_translated,
+                query_language=query_language,
+                translate_quotes=translate_quotes,
             )
 
     @server.tool()

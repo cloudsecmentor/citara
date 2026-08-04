@@ -3,11 +3,34 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-TOKEN_RE = re.compile(r"[A-Za-z0-9']+")
+# Unicode-aware: matches any run of "word" characters (letters/digits in any
+# script), not just ASCII Latin. `\W` is negated rather than matching `\w`
+# directly so tokens stay letters/digits only (no underscore), matching the
+# intent of the previous Latin-only regex.
+TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
+# Han, Hiragana/Katakana, and Hangul text has no inter-word whitespace, so a
+# TOKEN_RE match against a run of CJK text is often a whole sentence rather
+# than a "word". Fall back to character bigrams for those scripts so keyword
+# matching still has something granular to compare against.
+_CJK_RE = re.compile(r"[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]")
+
+
+def _bigrams(run: str) -> list[str]:
+    if len(run) <= 1:
+        return [run]
+    return [run[i : i + 2] for i in range(len(run) - 1)]
 
 
 def tokenize(text: str) -> list[str]:
-    return [match.group(0).lower() for match in TOKEN_RE.finditer(text)]
+    tokens: list[str] = []
+    for match in TOKEN_RE.finditer(text):
+        run = match.group(0).lower()
+        if _CJK_RE.search(run):
+            tokens.extend(_bigrams(run))
+        else:
+            tokens.append(run)
+    return tokens
 
 
 @dataclass(frozen=True)
