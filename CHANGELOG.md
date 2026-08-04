@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-05
+
+### Added
+
+- Added `--rebuild-from-artifacts` to `scripts/organize_source_artifacts.py`, which reconstructs `organization-manifest.json` by walking the existing `source-artifacts/` and `import-state/` trees instead of the `data/` staging directory. Records carry `tree`, `kind`, `bytes`, and `sha256`; `--no-hash` skips hashing, which matters on a real tree (~1.3 GB / ~10k files). The mode is strictly read-only against the artifact trees.
+- Added a `mode` field (`"organized"` or `"rebuilt"`) to the manifest. A rebuilt manifest cannot recover each file's original `data/` path, so `source` is salvaged from the sibling `source.json`'s `original_path` where present and left `null` otherwise, never invented. The marker exists so a consumer can tell the two provenance levels apart.
+- Added `trees_missing_source_tree_json` to the manifest summary. Rebuild reports trees lacking `source-tree.json` rather than synthesizing one, keeping the mode read-only.
+
+### Fixed
+
+- `organize_source_artifacts.py` no longer silently replaces a populated manifest with an empty one. A write of 0 records over an existing manifest with records is now refused with an explanatory message and exit code 2, on both the organize and rebuild paths; `--force` is the explicit opt-out. This is the bug that emptied the manifest when the `data/` staging directory was cleared.
+
+### Data & migrations
+
+- No Alembic migration required; the database schema is unchanged.
+- No corpus re-index or re-embed needed. This release touches only the audit manifest, which no application or test code reads.
+- `organization-manifest.json` gains `mode` and `trees_missing_source_tree_json`; the `schema` value stays `citara.organization_manifest.v1` since existing fields are unchanged and both additions are additive.
+
 ## [0.2.0] - 2026-08-04
 
 ### Added

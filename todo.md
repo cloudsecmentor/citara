@@ -11,7 +11,7 @@ Completed items are pruned from this file once done; see `CHANGELOG.md` and git 
 ## P0 — Before the first public push (blockers)
 
 - [ ] **Flip the repo to public** once the remaining P0 item is closed: `gh repo edit cloudsecmentor/citara --visibility public`. (Verified 2026-08-04: still `PRIVATE`.)
-- [ ] **`organization-manifest.json` rebuild mode.** The manifest was reset to empty because `scripts/organize_source_artifacts.py` rebuilds it from the repo `data/` staging dir (now empty). It is an audit-only index (not used by the app or tests) and the underlying artifacts are intact, but the script still has no way to reconstruct it. Add a "rebuild manifest from the existing `source-artifacts/` tree" mode.
+- [ ] **Run the manifest rebuild against the real tree.** `--rebuild-from-artifacts` shipped in 0.3.0 but has not been run on `citara-data/`, whose `organization-manifest.json` is still the empty one from 2026-07-30. Run `--rebuild-from-artifacts --no-hash` first to check the shape, then without `--no-hash` for the real index (~1.3 GB, a few minutes).
 
 ## P1 — Multilingual query & response support
 
@@ -48,6 +48,7 @@ for what shipped and how it's verified. Stage 4 below remains open.
   - [ ] Build one generic batch driver (discover → download → transcribe → publish with taxonomy metadata) that connectors feed with show-specific config only.
   - [ ] Reduce `scripts/transcribe_*_remote_batch.py` and per-show import scripts to thin wrappers or delete them.
   - [ ] Removes the README's first listed limitation ("Raw audio transcription is not implemented yet").
+- [ ] **`tree_meta()` creates phantom trees when `data/` is empty.** `organize_bema_transcripts()` calls `tree_meta("bema", ...)` unconditionally before checking whether any source data exists, so running the organize path against an empty staging dir writes a stray `bema/source-tree.json` into an otherwise-empty artifact tree. Harmless on the real corpus (the file already exists, so `tree_meta` returns early), but it is the same "organize assumes `data/` is populated" assumption that emptied the manifest. Move the `tree_meta()` calls behind the same existence checks the record-building code already does.
 - [ ] **Reranking** for retrieval (cross-encoder or LLM reranker layered on top of RRF-fused hybrid results).
 - [ ] **Implement or remove Docker stubs.** `worker` and `frontend` services in `docker-compose.yml` are print-stubs — either implement a minimal version or clearly mark/remove them so first-run `docker compose up` isn't confusing.
 - [ ] **Deferred ingestion types** from `docs/IDEA.md`: PDF (dep `pymupdf` already present), OCR/screenshots, web article ingestion. Scope one at a time.
