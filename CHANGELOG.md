@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Added `scripts/reembed_corpus.py`, which recomputes stored chunk embeddings **in place** using the configured provider. It re-embeds only; it does not re-ingest, so sources, chunks, chunk IDs, entity links, source preferences, and ingestion history are untouched. Dry run by default (writing requires `--yes`), reporting cosine drift between each stored vector and a freshly computed one. It also flags embedding rows belonging to a different model, since `vector_search` does not filter by `embedding_model` and such rows let a single chunk match more than once; `--prune-other-models` removes them. Keyset-paginated so a corpus of tens of thousands of chunks is not held in memory at once.
+
+### Data & migrations
+
+- No Alembic migration required; the database schema is unchanged.
+- This release adds the remedy for the re-embed flagged in `0.1.0`. Corpora embedded under `EMBEDDING_PROVIDER=local` before `0.1.0` should run `uv run python scripts/reembed_corpus.py --dry-run` and then `--yes`. Measured on a 43,146-chunk podcast corpus, 40,106 chunks (93%) had drifted, mean cosine 0.9611 and minimum 0.2245 against freshly computed vectors.
+- Running the script rewrites the `embeddings` table for the selected tenant. Back up the database first; it is not reversible.
+
 ## [0.1.0] - 2026-08-04
 
 First tagged release. Everything below accumulated before Citara had a release process; it is
