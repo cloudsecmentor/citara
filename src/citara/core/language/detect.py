@@ -103,13 +103,21 @@ def _detect_latin_language(sample: str, *, latin_count: int) -> tuple[str, float
     best_lang = max(scores, key=lambda lang: scores[lang])
     best_score = scores[best_lang]
 
+    char_density_confidence = min(1.0, latin_count / max(20, len(sample)))
+
     if best_score == 0:
         # No recognizable stopword from any known Latin-script language --
         # e.g. a bare proper noun. Fall back to the previous default of
         # assuming English, at reduced confidence; this is a fallback, not a
         # real detection.
-        confidence = min(1.0, latin_count / max(20, len(sample)))
-        return "en", confidence
+        return "en", char_density_confidence
 
-    confidence = min(1.0, best_score / len(words))
-    return best_lang, confidence
+    # Stopwords pick *which* language; confidence takes the stronger of two
+    # signals rather than the stopword fraction alone. A well-formed sentence
+    # is usually mostly content words (not stopwords), so stopword-fraction
+    # alone regularly undershoots the confidence a plain, unambiguous
+    # sentence deserves -- and callers elsewhere (e.g. ingestion's
+    # source-language auto-tagging) compare this confidence against the same
+    # 0.4 threshold this module used pre-Stage-1 for any Latin text.
+    confidence = max(best_score / len(words), char_density_confidence)
+    return best_lang, min(1.0, confidence)
