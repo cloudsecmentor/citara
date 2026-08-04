@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "citara"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Local-first personal knowledge backend for notes, podcast transcripts, embeddings, and citation-backed retrieval"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -83,6 +83,9 @@ ignore_missing_imports = true
 check_untyped_defs = true
 warn_unused_ignores = true
 no_implicit_optional = true
+
+[tool.hatch.version]
+path = "src/citara/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/citara"]

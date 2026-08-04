@@ -14,6 +14,27 @@ This project is **source-available**, not OSI open source.
 - Commercial use requires explicit written permission from the copyright holder.
 - See [COMMERCIAL_USE.md](COMMERCIAL_USE.md) for commercial-use terms.
 
+## Versioning
+
+Citara follows [Semantic Versioning](https://semver.org/), with the `0.x` caveat SemVer itself
+defines: **while the version is `0.y.z`, minor bumps (`0.y.0`) may contain breaking changes, and
+patch bumps (`0.y.z`) never do.** `src/citara/__init__.py`'s `__version__` is the single source of
+truth; `pyproject.toml` reads it dynamically (`dynamic = ["version"]`).
+
+The public API this policy covers:
+
+- MCP tool names, parameters, and response shapes.
+- The HTTP API (routes, parameters, response shapes).
+- Environment-variable configuration names.
+- The database schema (see `alembic/`).
+- The CLI (`citara-mcp`).
+
+Refactors inside `src/citara/core/` that don't change any of the above are not breaking, even
+between patch releases. Citara reaches `1.0.0` once the MCP tool surface -- the primary
+integration point for agents -- is considered stable.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the changelog convention and release checklist.
+
 ## Current capabilities
 
 - Text/markdown source ingestion.
@@ -28,6 +49,13 @@ This project is **source-available**, not OSI open source.
 - OpenAI embedding provider.
 - Azure AI Foundry / Azure OpenAI-compatible embedding provider.
 - Keyword, vector, and hybrid retrieval (reciprocal rank fusion).
+- Unicode-aware tokenization and dependency-free language detection (Latin, Cyrillic, Hebrew,
+  Arabic, CJK, Hangul, Devanagari scripts), with a `notice` diagnostic when a query's language has
+  no matching corpus sources instead of a silent empty result.
+- Query translation for cross-language retrieval: pass `query_translated` (preferred) or let a
+  configured `TranslationProvider` fall back server-side; both the original and translated query
+  are searched and fused by rank. `retrieve_context_pack` reports `response_language` and, on
+  request, verbatim-preserving `text_translated` quotes.
 - Citation/context-pack output.
 - FastAPI HTTP API.
 - MCP stdio tools (agent-agnostic).
@@ -39,6 +67,9 @@ This project is **source-available**, not OSI open source.
 - Raw audio transcription is not implemented yet.
 - PDF, OCR, screenshots, and general web article ingestion are intentionally deferred.
 - Hybrid retrieval fuses keyword and vector rankings with reciprocal rank fusion; cross-encoder reranking is not implemented.
+- Embeddings are not multilingual (the default deterministic provider and `EMBEDDING_DIMENSIONS`
+  are English-tuned); cross-language retrieval works today via query translation and fusion, not
+  a shared multilingual vector space. A curated proper-noun glossary is not implemented either.
 - Multi-user and hosted/SaaS deployment are not production-ready.
 - Podcast timestamps for untimed transcripts are approximate and proportional to transcript character offsets.
 - This repository does not include third-party podcast transcripts or audio.
@@ -397,6 +428,44 @@ export AZURE_OPENAI_API_KEY=...
 ```
 
 Do not commit provider credentials, `.env` files, `.azure/`, database dumps, or ingested third-party content.
+
+## Multilingual query support
+
+`search_knowledge` and `retrieve_context_pack` accept a query in any language. If the corpus is
+English (the common case) and the query is not, the **preferred** path costs nothing: pass
+`query_translated` with an English translation alongside the original `query` -- the calling agent
+is already a multilingual LLM holding the user's turn. Citara then searches both the original and
+translated query and fuses the results by rank, so proper nouns and terms that only survive
+untranslated (e.g. show names, transliterations) aren't lost.
+
+If the client doesn't supply a translation, Citara falls back to a server-side
+`TranslationProvider` -- a no-op by default (so local/offline/test runs never touch the network),
+optionally backed by the same OpenAI/Azure credentials as the embedding provider:
+
+```bash
+# Default: no-op, no network calls.
+export TRANSLATION_PROVIDER=noop
+
+# OpenAI-backed fallback translation
+export TRANSLATION_PROVIDER=openai
+export TRANSLATION_MODEL=gpt-4o-mini
+export OPENAI_API_KEY=...
+
+# Azure AI Foundry / Azure OpenAI-compatible fallback translation
+export TRANSLATION_PROVIDER=azure_foundry
+export AZURE_OPENAI_ENDPOINT=https://<resource>.cognitiveservices.azure.com/
+export AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
+export AZURE_OPENAI_API_VERSION=2024-02-01
+export AZURE_OPENAI_API_KEY=...
+```
+
+`retrieve_context_pack` also returns `response_language` (the language to answer the user in) and
+a short `response_language_directive`, since Citara returns evidence, not prose -- the calling
+agent composes the reply. Retrieved `chunks[].text` is always the verbatim, untranslated source
+string; pass `translate_quotes=true` to additionally receive `chunks[].text_translated` and
+`translation_provenance` alongside it. Both tools include a `notice` field
+(`{"code": "cross_language_query", ...}`) when a query's language has no matching corpus sources,
+so an empty result set is explainable rather than silent.
 
 ## MCP stdio server
 
