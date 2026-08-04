@@ -1,6 +1,25 @@
 from __future__ import annotations
 
 
+def test_normalized_tokens_never_yields_empty_tokens():
+    from citara.core.embeddings.providers import _normalized_tokens
+
+    # Unicode tokenization splits contractions ("god's" -> ["god", "s"]), and
+    # stemming the bare "s" would leave an empty token. Every empty token
+    # hashes to the same dimension, so unrelated contractions would pile onto
+    # one axis of the vector.
+    tokens = _normalized_tokens("You're going to see that God's people don't understand what it's about.")
+
+    assert "" not in tokens
+    assert "s" in tokens
+
+
+def test_normalized_tokens_still_stems_ordinary_plurals():
+    from citara.core.embeddings.providers import _normalized_tokens
+
+    assert _normalized_tokens("dogs cats") == ["dog", "cat"]
+
+
 def test_openai_embedding_provider_posts_expected_request(monkeypatch):
     from citara.core.embeddings.providers import OpenAIEmbeddingProvider
 

@@ -110,7 +110,13 @@ def _normalized_tokens(text: str) -> list[str]:
             # which is itself English-specific and simply won't match).
             normalized.append(SYNONYMS.get(token, token))
         else:
-            normalized.append(SYNONYMS.get(token, token.removesuffix("s")))
+            # Only stem multi-character tokens. `removesuffix("s")` reduces the
+            # bare token "s" -- which Unicode tokenization now yields from split
+            # contractions like "god's" -> ["god", "s"] -- to an empty string,
+            # and every empty token hashes to the same fixed dimension, piling
+            # unrelated contractions onto one axis of an 8-dimensional vector.
+            stemmed = token.removesuffix("s") if len(token) > 1 else token
+            normalized.append(SYNONYMS.get(token, stemmed))
     return normalized
 
 

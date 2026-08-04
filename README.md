@@ -2,8 +2,6 @@
 
 Citara is a local-first personal knowledge backend for ingesting notes and podcast transcripts, preserving source metadata, generating embeddings, and retrieving citation-backed context through FastAPI and MCP tools that any AI agent can call.
 
-> Formerly "Hermes Knowledge Vault". Renamed to Citara to be agent-agnostic — it is a source-faithful context backend for any AI agent, not tied to a specific assistant.
-
 It is designed for personal research workflows where you want to ask questions over your own material while keeping sources, transcript timestamps, and retrieval context inspectable.
 
 ## License
