@@ -30,9 +30,10 @@ for what shipped and how it's verified. Stage 4 below remains open.
 ### Stage 4 — Real cross-lingual retrieval
 
 - [ ] **Multilingual embeddings.** Query translation is a bridge; true cross-lingual recall wants a
-  shared vector space (`multilingual-e5`, `bge-m3`, or OpenAI `text-embedding-3-*`). Blocked on a
-  re-index: `EMBEDDING_DIMENSIONS` defaults to 8 and vectors are stored per model, so switching
-  needs a dimension migration plus re-embedding the corpus.
+  shared vector space (`multilingual-e5`, `bge-m3`, or OpenAI `text-embedding-3-*`). The re-index
+  half is no longer a blocker — `scripts/reembed_corpus.py` (0.2.0) rewrites stored vectors in
+  place for whatever provider is configured. What remains is raising `EMBEDDING_DIMENSIONS` from
+  its default of 8 and confirming the pgvector column width, since vectors are stored per model.
 - [ ] **Domain lexicon for proper nouns.** This corpus is biblical podcasts, where the
   highest-value query terms are exactly the ones generic MT transliterates inconsistently
   (Исход → Exodus, Второзаконие → Deuteronomy). A small curated scripture/name glossary applied
