@@ -6,12 +6,13 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from citara import __version__
 from citara.core.db import get_session, init_db
 from citara.core.entities import list_entities, list_source_entities
 from citara.core.ingestion.text import add_text_source
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.jobs import get_ingestion_job, list_ingestion_jobs, list_ingestion_jobs_for_source, serialize_ingestion_job
-from citara.core.retrieval.context_pack import retrieve_context_pack, search_by_mode
+from citara.core.retrieval.context_pack import query_language_notice, retrieve_context_pack, search_by_mode
 from citara.core.sources import delete_source, list_sources, set_source_preference
 from citara.core.summary import get_source_summary_context, resolve_source_for_summary, resolve_summary_context
 
@@ -53,11 +54,11 @@ async def lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Citara", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Citara", version=__version__, lifespan=lifespan)
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "version": __version__}
 
     @app.post("/sources/text")
     def add_text(payload: TextSourceRequest, session: Session = Depends(get_session)) -> dict[str, str | None]:
@@ -168,6 +169,8 @@ def create_app() -> FastAPI:
         source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
+        query_translated: str | None = None,
+        query_language: str | None = None,
         session: Session = Depends(get_session),
     ) -> dict:
         entity_slugs = [part.strip() for part in entity.split(",") if part.strip()] if entity else None
@@ -181,6 +184,8 @@ def create_app() -> FastAPI:
                 source_tree_slug=source_tree_slug,
                 language_policy=language_policy,
                 language=language,
+                query_translated=query_translated,
+                query_language=query_language,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -200,7 +205,8 @@ def create_app() -> FastAPI:
                     "end_ms": result.end_ms,
                 }
                 for result in results
-            ]
+            ],
+            "notice": query_language_notice(session, query=q),
         }
 
     @app.get("/context-pack")
@@ -212,6 +218,9 @@ def create_app() -> FastAPI:
         source_tree_slug: str | None = None,
         language_policy: str = "auto",
         language: str | None = None,
+        query_translated: str | None = None,
+        query_language: str | None = None,
+        translate_quotes: bool = False,
         session: Session = Depends(get_session),
     ) -> dict:
         entity_slugs = [part.strip() for part in entity.split(",") if part.strip()] if entity else None
@@ -225,6 +234,9 @@ def create_app() -> FastAPI:
                 source_tree_slug=source_tree_slug,
                 language_policy=language_policy,
                 language=language,
+                query_translated=query_translated,
+                query_language=query_language,
+                translate_quotes=translate_quotes,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

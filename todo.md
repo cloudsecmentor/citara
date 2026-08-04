@@ -4,33 +4,41 @@ Prioritized next steps toward a clean public (source-available) release and beyo
 
 Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
+Completed items are pruned from this file once done; see `CHANGELOG.md` and git history for what shipped.
+
 ---
 
 ## P0 — Before the first public push (blockers)
 
-- [x] **Finish the in-flight refactor.** Connector migration committed (`4fdbf17`); working tree clean.
-- [x] **Rebrand to `Citara`** (agent-agnostic). Package, imports, console script, docker/compose/env/alembic, and docs renamed; `uv.lock` regenerated. `uv run pytest -q` (61 passing) and `uv run alembic upgrade head` (fresh DB) both green.
-- [x] **Migrated the local corpus** to `../citara/` (`citara.db`, `source-artifacts/`, `import-state/`); `../hkb` removed. No `.env`, so defaults resolve correctly.
-- [x] **Renamed** local `hkb.sources.json` → `citara.sources.json` (still gitignored).
-- [x] **Published to GitHub**: pushed to `cloudsecmentor/citara` (currently **private**). Local folder stays `hermes-knowledge-vault` because `../citara` is the data dir (can't be both).
-  - [ ] Flip to public when P0 is done: `gh repo edit cloudsecmentor/citara --visibility public`.
-- [ ] **Note:** `organization-manifest.json` was reset to empty because `scripts/organize_source_artifacts.py` rebuilds it from the repo `data/` staging dir (now empty). The manifest is an audit-only index (not used by the app/tests), and the underlying artifacts are intact. Consider adding a "rebuild manifest from the existing `source-artifacts/` tree" mode.
-- [x] **Verified no ignored artifacts published** (`.db`, `.azure/`, `.hermes/`, `citara.sources.json`, `data/` all gitignored).
-- [x] **Added security contact** to `SECURITY.md`: `cloudsecmentor+citara@gmail.com`.
-- [x] **Updated `pyproject.toml` package metadata** with Citara maintainer contact and `[project.urls]` homepage / repository / issues / security link.
+- [ ] **Flip the repo to public** once the remaining P0 item is closed: `gh repo edit cloudsecmentor/citara --visibility public`. (Verified 2026-08-04: still `PRIVATE`.)
+- [ ] **`organization-manifest.json` rebuild mode.** The manifest was reset to empty because `scripts/organize_source_artifacts.py` rebuilds it from the repo `data/` staging dir (now empty). It is an audit-only index (not used by the app or tests) and the underlying artifacts are intact, but the script still has no way to reconstruct it. Add a "rebuild manifest from the existing `source-artifacts/` tree" mode.
 
-## P1 — Repo hygiene & contributor experience
+## P1 — Multilingual query & response support
 
-- [x] **Isolate tests from the real DB.** `tests/conftest.py` now forces `DATABASE_URL` onto a throwaway temp SQLite DB before importing `citara`, so the suite no longer reads/writes the user's real corpus.
-- [x] **Add CI** (`.github/workflows/ci.yml`): ruff lint/format check, mypy, pytest, and an Alembic upgrade check on a fresh SQLite DB, on push/PR across Python 3.11/3.12/3.14.
-- [x] **Add lint/format/type config** to `pyproject.toml`:
-  - [x] `ruff` (lint + format, line-length 140; `E501` off, `B008` allowed for FastAPI `Depends`, `E402` allowed in scripts/conftest). Whole tree linted and formatted; the lint pass surfaced real `NameError` bugs (missing `sys`/`os` imports in connector error paths).
-  - [x] `mypy` on `src/` (lenient baseline: `ignore_missing_imports`, `check_untyped_defs`; zero errors).
-  - [x] Wire them into CI.
-- [x] **Add `.pre-commit-config.yaml`** (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, mypy optional).
-- [x] **Add `CODE_OF_CONDUCT.md`** (Contributor Covenant) — standard for public repos.
-- [x] **Add issue/PR templates** under `.github/` (bug report, feature request, PR checklist).
-- [x] **Reconcile "open source" wording.** PolyForm Noncommercial is source-available, not OSI; README, `pyproject` classifiers, and `docs/IDEA.md` now consistently state source-available/noncommercial licensing.
+**Status (2026-08-04): Stages 1–3 shipped.** `tokenize()` and `DeterministicEmbeddingProvider` are
+now Unicode-aware (with character-bigram fallback for Han/Kana/Hangul); `detect_language_code` no
+longer mislabels every Latin-containing query `en`; `search_knowledge`/`retrieve_context_pack`
+return a `notice` when a query's language has no matching corpus sources instead of failing
+silently, and `_resolve_source_language`'s filter trap is guarded; `query_translated`/
+`query_language` params let a client (or a configured server-side `TranslationProvider` fallback)
+bridge cross-language retrieval via dual-query RRF fusion; and `retrieve_context_pack` now reports
+`response_language`/`response_language_directive` plus optional, citation-preserving
+`translate_quotes`. See `CHANGELOG.md` `[Unreleased]` and `tests/test_language_policy.py`,
+`tests/test_tokenize.py`, `tests/test_language_detect.py`, `tests/test_translation_providers.py`
+for what shipped and how it's verified. Stage 4 below remains open.
+
+### Stage 4 — Real cross-lingual retrieval
+
+- [ ] **Multilingual embeddings.** Query translation is a bridge; true cross-lingual recall wants a
+  shared vector space (`multilingual-e5`, `bge-m3`, or OpenAI `text-embedding-3-*`). Blocked on a
+  re-index: `EMBEDDING_DIMENSIONS` defaults to 8 and vectors are stored per model, so switching
+  needs a dimension migration plus re-embedding the corpus.
+- [ ] **Domain lexicon for proper nouns.** This corpus is biblical podcasts, where the
+  highest-value query terms are exactly the ones generic MT transliterates inconsistently
+  (Исход → Exodus, Второзаконие → Deuteronomy). A small curated scripture/name glossary applied
+  before retrieval will beat generic MT on the queries users actually ask.
+- [ ] **Corpus-language discovery.** Extend `list_sources`, or add a `corpus_languages` tool, so a
+  client can learn the corpus language up front and translate proactively instead of reactively.
 
 ## P2 — Product / functional gaps
 
@@ -39,7 +47,6 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
   - [ ] Build one generic batch driver (discover → download → transcribe → publish with taxonomy metadata) that connectors feed with show-specific config only.
   - [ ] Reduce `scripts/transcribe_*_remote_batch.py` and per-show import scripts to thin wrappers or delete them.
   - [ ] Removes the README's first listed limitation ("Raw audio transcription is not implemented yet").
-- [x] **Hybrid retrieval score fusion fixed**: keyword/vector rankings now merge via reciprocal rank fusion (k=60) instead of adding raw scores on incomparable scales.
 - [ ] **Reranking** for retrieval (cross-encoder or LLM reranker layered on top of RRF-fused hybrid results).
 - [ ] **Implement or remove Docker stubs.** `worker` and `frontend` services in `docker-compose.yml` are print-stubs — either implement a minimal version or clearly mark/remove them so first-run `docker compose up` isn't confusing.
 - [ ] **Deferred ingestion types** from `docs/IDEA.md`: PDF (dep `pymupdf` already present), OCR/screenshots, web article ingestion. Scope one at a time.
@@ -50,7 +57,6 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] **Quickstart that works in <5 min** at the top of README (clone → `uv sync` → `docker compose up -d postgres api` → curl example).
 - [ ] **Architecture diagram** kept in sync (there's `docs/current-architecture.html`; consider a Mermaid diagram in README).
 - [ ] **Document the connector authoring flow** (how to add a new podcast/source connector under `src/.../connectors/`).
-- [ ] **CHANGELOG.md** + adopt tags/releases (a git version-tag workflow already exists in your tooling).
 - [ ] **Screenshots / example citation output** in README to show the value prop.
 
 ## P4 — Toward multi-tenant / hosted (longer term, from IDEA.md)
@@ -62,7 +68,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ---
 
-## Naming (decision + rename checklist)
+## Naming (decision — reference)
 
 **Chosen name: `Citara`** (coined from "cite") — agent-agnostic and points at the real
 differentiator: *citation-backed retrieval with source fidelity*, not generic "agent memory."
@@ -77,20 +83,5 @@ MnemeHQ/mneme, Mnemo-mcp/Mnemo, MnemoAI/mnemo), with the PyPI names already publ
 Positioning: *Citara is a local-first, citation-backed personal knowledge vault that any AI agent
 can query over MCP — a source-faithful context backend for agents.*
 
-Proposed concrete scheme when renaming:
-- Python package: `citara` (from `hermes_knowledge`)
-- Console script: `citara-mcp` (from `hermes-kv-mcp`)
-- Default DB file: `citara.db`; data dir: `citara/` (from `hkb/`)
-
-Rename status (applied):
-- [x] `pyproject.toml`: `name` → `citara`, console script `citara-mcp`, wheel package `src/citara`.
-- [x] Python package dir `src/hermes_knowledge/` → `src/citara/` (all imports updated).
-- [x] MCP server name (`FastMCP("citara")`) and stdio entrypoint.
-- [x] `README.md`, `docs/*`, `NOTICE`, `COMMERCIAL_USE.md`, `SECURITY.md`, `CONTRIBUTING.md`.
-- [x] `docker-compose.yml` (Postgres db/user/pass → `citara`), `Dockerfile`.
-- [x] `.env.example`, `alembic.ini`, data dir `hkb` → `citara`, DB `hermes_knowledge_vault.db` → `citara.db`.
-- [x] Renamed `scripts/hkb_maintenance.py` → `scripts/citara_maintenance.py` (+ test) and `hkb.sources.example.json` → `citara.sources.example.json`.
-- [x] `uv.lock` regenerated (`citara v0.1.0`).
-- [x] README carries a "formerly Hermes Knowledge Vault" note; `docs/IDEA.md` has a historical-rename disclaimer.
-- [ ] Rename the GitHub repo itself (see P0).
-- [x] `pyproject.toml`: maintainer/security contact + `[project.urls]` added.
+The code/docs/packaging rename is complete. The one outstanding piece is renaming the GitHub repo
+itself, tracked under P0.

@@ -8,9 +8,14 @@ from typing import Protocol
 
 import httpx
 
+from citara.core.chunking.simple import tokenize
 from citara.core.config import settings
 
-TOKEN_RE = re.compile(r"[A-Za-z0-9']+")
+# Scripts where English-style plural "s" stemming would corrupt the token
+# rather than normalize it -- it's an English-specific heuristic. Mirrors the
+# non-Latin ranges used for language detection elsewhere in `core/language`.
+_NON_LATIN_RE = re.compile("[\u0400-\u04ff\u0590-\u05ff\u0600-\u06ff\u0900-\u097f\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
 SYNONYMS = {
     "feline": "cat",
     "felines": "cat",
@@ -97,8 +102,22 @@ class AzureFoundryEmbeddingProvider:
 
 
 def _normalized_tokens(text: str) -> list[str]:
-    tokens = [match.group(0).lower() for match in TOKEN_RE.finditer(text)]
-    return [SYNONYMS.get(token, token.removesuffix("s")) for token in tokens]
+    tokens = tokenize(text)
+    normalized: list[str] = []
+    for token in tokens:
+        if _NON_LATIN_RE.search(token):
+            # Non-Latin scripts: keep as-is (aside from synonym mapping,
+            # which is itself English-specific and simply won't match).
+            normalized.append(SYNONYMS.get(token, token))
+        else:
+            # Only stem multi-character tokens. `removesuffix("s")` reduces the
+            # bare token "s" -- which Unicode tokenization now yields from split
+            # contractions like "god's" -> ["god", "s"] -- to an empty string,
+            # and every empty token hashes to the same fixed dimension, piling
+            # unrelated contractions onto one axis of an 8-dimensional vector.
+            stemmed = token.removesuffix("s") if len(token) > 1 else token
+            normalized.append(SYNONYMS.get(token, stemmed))
+    return normalized
 
 
 def get_embedding_provider() -> EmbeddingProvider:

@@ -21,6 +21,11 @@ class Settings:
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "local")
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "deterministic-hash-v1")
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "8"))
+    # Server-side query-translation fallback (used only when a client calls
+    # search_knowledge/retrieve_context_pack without its own query_translated).
+    # Defaults to a no-op so local/offline/test runs never touch the network.
+    translation_provider: str = os.getenv("TRANSLATION_PROVIDER", "noop")
+    translation_model: str = os.getenv("TRANSLATION_MODEL", "gpt-4o-mini")
     transcription_provider: str = os.getenv("TRANSCRIPTION_PROVIDER", "local")
     ocr_provider: str = os.getenv("OCR_PROVIDER", "local")
     default_tenant_id: str = os.getenv("DEFAULT_TENANT_ID", "local")

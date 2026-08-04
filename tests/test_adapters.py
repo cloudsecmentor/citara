@@ -36,6 +36,59 @@ def test_api_add_text_search_context_pack_and_delete_source():
         assert not any(result["source_id"] == source_id for result in search_after_delete.json()["results"])
 
 
+def test_api_search_and_context_pack_expose_multilingual_params_and_fields():
+    from fastapi.testclient import TestClient
+
+    from citara.adapters.api.main import create_app
+
+    with TestClient(create_app()) as client:
+        title = "API Exodus Notes Multilingual"
+        response = client.post(
+            "/sources/text",
+            json={"title": title, "text": "The Exodus tells the story of Israel leaving slavery in Egypt."},
+        )
+        assert response.status_code == 200
+        source_id = response.json()["source_id"]
+
+        search = client.get(
+            "/search",
+            params={
+                "q": "Что говорит об Исходе",
+                "query_translated": "What does it say about the Exodus and Egypt",
+                "mode": "hybrid",
+            },
+        )
+        assert search.status_code == 200
+        search_body = search.json()
+        assert "notice" in search_body
+        assert any(result["source_id"] == source_id for result in search_body["results"])
+
+        pack = client.get(
+            "/context-pack",
+            params={
+                "q": "Что говорит об Исходе",
+                "query_translated": "What does it say about the Exodus and Egypt",
+                "mode": "hybrid",
+                "translate_quotes": True,
+            },
+        )
+        assert pack.status_code == 200
+        pack_body = pack.json()
+        assert pack_body["response_language"] == "ru"
+        assert pack_body["response_language_directive"]
+        assert pack_body["notice"] == {
+            "code": "cross_language_query",
+            "query_language": "ru",
+            "corpus_languages": ["en"],
+        }
+        assert pack_body["chunks"], "expected non-empty results via translated-query fusion"
+        for chunk in pack_body["chunks"]:
+            assert chunk["text_translated"] == chunk["text"]
+            assert chunk["translation_provenance"]["model"] == "noop"
+
+        client.delete(f"/sources/{source_id}")
+
+
 def test_mcp_server_exposes_tools():
     from citara.adapters.mcp.server import create_mcp_server
 

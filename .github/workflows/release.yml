@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Lint
+        run: uv run ruff check src tests scripts
+      - name: Format check
+        run: uv run ruff format --check src tests scripts
+      - name: Type check
+        run: uv run mypy
+      - name: Alembic migrations on a fresh database
+        run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: sqlite:///${{ runner.temp }}/citara-ci.db
+      - name: Tests
+        run: uv run pytest
+      - name: Verify tag matches citara.__version__
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(uv run python -c 'import citara; print(citara.__version__)')"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match citara.__version__ (${PKG_VERSION}). Fix src/citara/__init__.py or the tag and retry."
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches citara.__version__ (${PKG_VERSION})."
+      - name: Build sdist and wheel
+        run: uv build
+      - name: Extract changelog section
+        run: uv run python scripts/extract_changelog.py "${GITHUB_REF_NAME#v}" > release-notes.md
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --notes-file release-notes.md
