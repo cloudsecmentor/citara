@@ -6,6 +6,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-05
+
+Public-release hygiene pass. No runtime behavior changes, but the default corpus location moved, so
+read the migration note below before upgrading.
+
+### Security
+
+- Removed a hardcoded transcription-worker SSH target (`root@<ip>`) and private-key filename from
+  `scripts/transcribe_bema_remote_batch.py`, `scripts/transcribe_bibleproject_remote_batch.py`, and
+  `scripts/transcribe_podcast_remote_batch.py`. The worker is deployment-specific and now comes from
+  `CITARA_WORKER_SSH` / `CITARA_WORKER_SSH_KEY` / `CITARA_WORKER_ROOT` or the corresponding CLI
+  flags. `--worker` is a required argument when no environment default is set, so the scripts fail
+  loudly rather than attempting to reach someone else's host.
+- Removed hardcoded absolute developer paths (`/Users/<name>/...`) from eight scripts. All data
+  locations now resolve through `scripts/artifact_paths.py`, which reads `CITARA_DATA_ROOT` and
+  falls back to a sibling `../citara-data` directory.
+- Stopped tracking two podcast pipeline-state files that had been committed into `import-state/`,
+  and added `/source-artifacts/`, `/import-state/`, and `/object-store/` to `.gitignore`. The files
+  remain on disk; only Git tracking changed.
+
+### Fixed
+
+- The documented default corpus root resolved back into the repository itself. `.env.example`,
+  `docs/SOURCE_ARTIFACT_STORAGE.md`, and `scripts/artifact_paths.py` all pointed at `../citara`,
+  which from a checkout named `citara` is the checkout — defeating the "keep corpus data outside the
+  code repo" design and explaining how corpus state came to be committed. The default is now
+  `../citara-data`, and a regression test asserts the resolved data root is never inside the repo.
+
+### Added
+
+- `CITARA_DATA_ROOT` sets the database, artifact, state, and object-store paths in one variable.
+  Finer-grained `SOURCE_ARTIFACT_ROOT` / `SOURCE_STATE_ROOT` / `OBJECT_STORE_PATH` still win when
+  set.
+- `artifact_paths.apply_default_env()` seeds the data-location environment variables that scripts
+  rely on without overriding values from a real `.env`.
+
+### Changed
+
+- Rewrote `README.md` around a reader's path through the project: value proposition, quick start,
+  and MCP integration first; API, ingestion, and retrieval reference next; operations, limitations,
+  and project metadata last. Added badges, a table of contents, capability and MCP-tool tables, and
+  collapsed the remote-transcription operator detail into a `<details>` block. Content is
+  preserved — license and versioning policy moved from the top to `Project information`.
+
+### Data & migrations
+
+- No Alembic migration required; the database schema is unchanged.
+- No corpus re-index or re-embed needed. Embeddings, chunks, and stored data are untouched and
+  remain backward compatible with `0.3.1`.
+- **Action may be required if you relied on the built-in defaults rather than a `.env`.** The
+  default data root changed from `../citara` to `../citara-data`. If you have an existing `.env`
+  with explicit `DATABASE_URL` / `SOURCE_ARTIFACT_ROOT` / `SOURCE_STATE_ROOT` values, nothing
+  changes. Otherwise, either move your corpus directory to `../citara-data` or set
+  `CITARA_DATA_ROOT` to its current location.
+- Users of the remote transcription scripts must now set `CITARA_WORKER_SSH` (or pass `--worker`);
+  those scripts previously had a built-in host and will now exit with a missing-argument error
+  instead.
+
 ## [0.3.1] - 2026-08-05
 
 ### Fixed
