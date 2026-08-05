@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-05
+
+### Fixed
+
+- Artifact `kind` classification no longer assumes the `bema` filename convention. The regexes anchored on `e\d+-`, so remote-transcription artifacts from shows using prefixes like `q001-buzzsprout-17003095-s4e1-` fell through to the `other` bucket — 240 of them on the real corpus. Matching is now on the kind suffix with any non-empty prefix.
+- `iter_tree_files()` no longer skips every dotfile. The blanket skip also dropped live pipeline state (`.transcription-watchdog.lock`, `.hourly-completion-reported`, `.hourly-status-complete-sent`) from what is meant to be a complete audit index. Only genuine OS cruft (`.DS_Store`, `._*`, `Thumbs.db`, `.localized`) is excluded now.
+- `organize_bema_transcripts()` no longer creates a phantom `bema/source-tree.json` when `data/` is empty. It called `tree_meta()` before checking whether any source data existed; unlike the other `organize_*()` functions it aggregates several directories, so the check now runs after source collection.
+
+### Data & migrations
+
+- No Alembic migration required; the database schema is unchanged.
+- No corpus re-index or re-embed needed. These fixes affect only the audit manifest, which no application or test code reads.
+- Corpora whose manifest was generated with `0.3.0` should re-run `--rebuild-from-artifacts` to pick up the corrected classification and the previously omitted pipeline-state files. On the reference corpus this moves 240 records out of `other` and raises the artifact count from 10,240 to 10,244.
+
 ## [0.3.0] - 2026-08-05
 
 ### Added
