@@ -225,12 +225,20 @@ def organize_bibleproject() -> list[dict[str, Any]]:
 
 def organize_bema_transcripts() -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    tree_meta("bema", "The BEMA Podcast", "podcast", "data/import-artifacts/bema + data/bema-session-1")
     sources: list[Path] = []
     for p in sorted((DATA / "bema-session-1").glob("*.json")):
         sources.append(p)
     for d in [DATA / "bema1", DATA / "bema35"]:
         sources.extend(sorted(d.glob("*.json")) if d.exists() else [])
+    if not sources:
+        # Unlike the other organize_* functions, this one aggregates several
+        # directories and so has no single root to test up front. Without this
+        # check it called tree_meta() unconditionally, creating a phantom
+        # bema/source-tree.json in an otherwise-empty artifact tree whenever
+        # data/ was absent -- the same "data/ is always populated" assumption
+        # that let an empty manifest overwrite a populated one.
+        return out
+    tree_meta("bema", "The BEMA Podcast", "podcast", "data/import-artifacts/bema + data/bema-session-1")
     seen: set[str] = set()
     for src in sources:
         payload = read_json(src)
@@ -452,9 +460,14 @@ def guard_manifest_write(new_artifact_count: int, *, manifest_path: Path, force:
 # own source.json ("original_path"), which real data shows is only present on
 # ~55% of items; the rest get source: null rather than a fabricated value.
 
-_OAI_RAW_CHUNKED_RE = re.compile(r"^e\d+-oai-raw-chunked\.json$")
-_OAI_RAW_RE = re.compile(r"^e\d+-oai-raw\.json$")
-_TRANSCRIBE_STATS_RE = re.compile(r"^e\d+-transcribe-stats\.json$")
+# Remote-transcription artifacts are named "<item-prefix>-<kind>.json", but the
+# prefix convention varies by show: bema uses "e<NNN>-", others use forms like
+# "q001-buzzsprout-17003095-s4e1-". Anchoring on "e\d+-" only classified bema's
+# files and dropped 240 real artifacts into the "other" bucket, so match on the
+# kind suffix and let the prefix be anything non-empty.
+_OAI_RAW_CHUNKED_RE = re.compile(r"^.+-oai-raw-chunked\.json$")
+_OAI_RAW_RE = re.compile(r"^.+-oai-raw\.json$")
+_TRANSCRIBE_STATS_RE = re.compile(r"^.+-transcribe-stats\.json$")
 
 # Direct filename -> kind. Reuses the three literals organize_*() already emits
 # (payload_json, source_page_html, state_json) wherever a rebuilt file is
@@ -488,10 +501,20 @@ def classify_artifact_kind(filename: str) -> str:
     return "other"
 
 
+# Skipping every dotfile also skipped live pipeline state (.transcription-watchdog.lock,
+# .hourly-completion-reported, ...), which an audit index has no business omitting.
+# Only genuine OS cruft is excluded now.
+_CRUFT_NAMES = frozenset({".DS_Store", "Thumbs.db", ".localized"})
+
+
+def is_os_cruft(path: Path) -> bool:
+    return path.name in _CRUFT_NAMES or path.name.startswith("._")
+
+
 def iter_tree_files(root: Path) -> list[Path]:
     if not root.exists():
         return []
-    return sorted(p for p in root.rglob("*") if p.is_file() and not any(part.startswith(".") for part in p.relative_to(root).parts))
+    return sorted(p for p in root.rglob("*") if p.is_file() and not is_os_cruft(p))
 
 
 def item_slug_from_parts(rel_parts: tuple[str, ...]) -> str | None:
