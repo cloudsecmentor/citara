@@ -33,6 +33,12 @@ status.md
 backup*.sql
 *.dump
 
+# Corpus data. These belong outside the checkout (see CITARA_DATA_ROOT), but a
+# stray local run or a legacy .env can still create them here -- never commit them.
+/source-artifacts/
+/import-state/
+/object-store/
+
 # Build artifacts
 dist/
 build/

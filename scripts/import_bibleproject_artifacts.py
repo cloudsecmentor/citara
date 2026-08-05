@@ -8,13 +8,20 @@ import json
 import os
 import re
 import shutil
+import sys
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-DEFAULT_CITARA_ROOT = Path("../citara-data")
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from artifact_paths import data_root
+
+DEFAULT_CITARA_ROOT = data_root()
 
 from sqlalchemy import create_engine, delete, select, text
 from sqlalchemy.engine import Engine

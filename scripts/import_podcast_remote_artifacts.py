@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -25,7 +26,13 @@ from citara.core.entities import attach_source_entities
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.models import Base, Chunk, Source, TranscriptSegment
 
-DEFAULT_CITARA_ROOT = Path("../citara-data")
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from artifact_paths import data_root
+
+DEFAULT_CITARA_ROOT = data_root()
 CORPUS_SLUG = "a-book-like-no-other"
 SHOW_TITLE = "A Book Like No Other"
 FEED_URL = "https://rss.buzzsprout.com/2113502.rss"

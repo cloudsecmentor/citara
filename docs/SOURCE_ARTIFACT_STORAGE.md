@@ -49,8 +49,8 @@ The repository should not contain:
 Defaults should point outside the repository so real corpora are not accidentally committed. The recommended local default is a sibling `../citara` directory:
 
 ```dotenv
-SOURCE_ARTIFACT_ROOT=../citara/source-artifacts
-SOURCE_STATE_ROOT=../citara/import-state
+SOURCE_ARTIFACT_ROOT=../citara-data/source-artifacts
+SOURCE_STATE_ROOT=../citara-data/import-state
 ```
 
 For a larger real personal corpus, configure an absolute source-artifact root in `.env`:
@@ -69,7 +69,7 @@ SOURCE_STATE_ROOT=/Volumes/Citara/import-state
 
 `.env` itself is ignored by Git. Commit only `.env.example` with safe defaults and comments.
 
-Importer code should resolve artifact paths from `SOURCE_ARTIFACT_ROOT` instead of assuming any repository-relative `data/import-artifacts/sources` path. Repo-relative `./data/...` paths are still ignored by Git and can be used for throwaway experiments, but new generic source importers should default to `../citara/...` or an explicit absolute path.
+Importer code should resolve artifact paths from `SOURCE_ARTIFACT_ROOT` instead of assuming any repository-relative `data/import-artifacts/sources` path. Repo-relative `./data/...` paths are still ignored by Git and can be used for throwaway experiments, but new generic source importers should default to `../citara-data/...` or an explicit absolute path.
 
 The supported organizer command is:
 
@@ -115,18 +115,18 @@ Use a source-tree name that represents the collection, creator, channel, book, c
 Default development roots:
 
 ```text
-SOURCE_ARTIFACT_ROOT=../citara/source-artifacts
-SOURCE_STATE_ROOT=../citara/import-state
+SOURCE_ARTIFACT_ROOT=../citara-data/source-artifacts
+SOURCE_STATE_ROOT=../citara-data/import-state
 ```
 
 Examples with the default sibling root:
 
 ```text
-../citara/source-artifacts/bema/items/001-trust-the-story/
-../citara/source-artifacts/bibleproject/items/god-e1-god-or-gods/
-../citara/source-artifacts/tim-mackie-youtube/items/yt-dq1x45abcde/
-../citara/source-artifacts/surprised-by-hope/items/chapter-03/
-../citara/source-artifacts/personal-notes/items/daily-reflection/
+../citara-data/source-artifacts/bema/items/001-trust-the-story/
+../citara-data/source-artifacts/bibleproject/items/god-e1-god-or-gods/
+../citara-data/source-artifacts/tim-mackie-youtube/items/yt-dq1x45abcde/
+../citara-data/source-artifacts/surprised-by-hope/items/chapter-03/
+../citara-data/source-artifacts/personal-notes/items/daily-reflection/
 ```
 
 Equivalent absolute-path examples:

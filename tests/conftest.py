@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Isolate the test suite onto a throwaway SQLite database. This must run before any
 # `citara` import because the engine is created at import time from settings.database_url.
-# Without this, the API tests would connect to the user's real corpus DB (../citara).
+# Without this, the API tests would connect to the user's real corpus DB (../citara-data).
 _TEST_DB = Path(tempfile.gettempdir()) / "citara_test.db"
 if _TEST_DB.exists():
     _TEST_DB.unlink()
