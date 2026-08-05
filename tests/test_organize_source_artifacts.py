@@ -305,3 +305,58 @@ def test_main_rebuild_guard_blocks_overwrite_then_force_overrides(tmp_path, caps
     after = json.loads(manifest_path.read_text())
     assert after["artifact_count"] == 0
     assert after["mode"] == "rebuilt"
+
+
+def test_classify_artifact_kind_matches_any_item_prefix_not_just_bema():
+    # bema names these "e<NNN>-", other shows use forms like
+    # "q001-buzzsprout-17003095-s4e1-". Anchoring on "e\d+-" dropped 240 real
+    # artifacts into the "other" bucket on the live corpus.
+    for prefix in ("e032", "q001-buzzsprout-17003095-s4e1", "ep-7b"):
+        assert organizer.classify_artifact_kind(f"{prefix}-oai-raw.json") == "oai_raw_json"
+        assert organizer.classify_artifact_kind(f"{prefix}-oai-raw-chunked.json") == "oai_raw_chunked_json"
+        assert organizer.classify_artifact_kind(f"{prefix}-transcribe-stats.json") == "transcribe_stats_json"
+
+
+def test_classify_artifact_kind_still_falls_back_to_other():
+    assert organizer.classify_artifact_kind("batch-1-532-summary.json") == "other"
+    assert organizer.classify_artifact_kind("approved-queue.json") == "other"
+    # A bare suffix with no prefix is not a remote-transcription artifact.
+    assert organizer.classify_artifact_kind("oai-raw.json") == "other"
+
+
+def test_rebuild_indexes_pipeline_state_dotfiles_but_skips_os_cruft(tmp_path):
+    repo = tmp_path / "repo"
+    artifact_root = tmp_path / "citara" / "source-artifacts"
+    state_root = tmp_path / "citara" / "import-state"
+    _build_rebuild_fixture_tree(artifact_root)
+    state_root.mkdir(parents=True, exist_ok=True)
+
+    remote_dir = artifact_root / "bema" / "remote-openai"
+    # Live pipeline state -- an audit index must not silently omit these.
+    (remote_dir / ".transcription-watchdog.lock").write_text("")
+    (remote_dir / ".hourly-completion-reported").write_text("")
+    # OS cruft -- excluded.
+    (remote_dir / ".DS_Store").write_bytes(b"\x00")
+    (remote_dir / "._transcript.txt").write_bytes(b"\x00")
+
+    summary = organizer.rebuild_from_artifacts(repo=repo, artifact_root=artifact_root, state_root=state_root, hash_files=False)
+    names = {Path(r["target"]).name for r in summary["records"]}
+
+    assert ".transcription-watchdog.lock" in names
+    assert ".hourly-completion-reported" in names
+    assert ".DS_Store" not in names
+    assert "._transcript.txt" not in names
+
+
+def test_organize_all_does_not_create_phantom_bema_tree_when_data_is_empty(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "data").mkdir(parents=True)
+    artifact_root = tmp_path / "citara" / "source-artifacts"
+    state_root = tmp_path / "citara" / "import-state"
+
+    organizer.organize_all(repo=repo, artifact_root=artifact_root, state_root=state_root)
+
+    # organize_bema_transcripts() used to call tree_meta() before checking whether
+    # any source data existed, littering a bema/ tree with no content behind it.
+    assert not (artifact_root / "bema").exists()
+    assert list(artifact_root.iterdir()) == []
