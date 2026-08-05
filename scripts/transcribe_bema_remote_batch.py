@@ -30,11 +30,19 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-DEFAULT_CITARA_ROOT = Path("../citara-data")
-DEFAULT_REPO = Path("../citara")
-DEFAULT_WORKER = "user@worker.example.invalid"
-DEFAULT_SSH_KEY = Path("~/.ssh/id_ed25519").expanduser()
-DEFAULT_REMOTE_ROOT = Path("/opt/citara-worker")
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from artifact_paths import data_root, repo_root
+
+DEFAULT_CITARA_ROOT = data_root()
+DEFAULT_REPO = repo_root()
+# The transcription worker is deployment-specific: supply it with --worker or
+# CITARA_WORKER_SSH (e.g. "user@host"). There is deliberately no built-in default.
+DEFAULT_WORKER = os.getenv("CITARA_WORKER_SSH", "")
+DEFAULT_SSH_KEY = Path(os.getenv("CITARA_WORKER_SSH_KEY", "~/.ssh/id_ed25519")).expanduser()
+DEFAULT_REMOTE_ROOT = Path(os.getenv("CITARA_WORKER_ROOT", "/opt/citara-worker"))
 
 SSH_OPTS = [
     "-o",
@@ -151,7 +159,12 @@ def main() -> None:
     parser.add_argument("--end", type=int, required=True)
     parser.add_argument("--citara-root", type=Path, default=DEFAULT_CITARA_ROOT)
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO)
-    parser.add_argument("--worker", default=DEFAULT_WORKER)
+    parser.add_argument(
+        "--worker",
+        default=DEFAULT_WORKER,
+        required=not DEFAULT_WORKER,
+        help="Transcription worker SSH target, e.g. user@host. Defaults to $CITARA_WORKER_SSH.",
+    )
     parser.add_argument("--ssh-key", type=Path, default=DEFAULT_SSH_KEY)
     parser.add_argument("--remote-root", type=Path, default=DEFAULT_REMOTE_ROOT)
     parser.add_argument("--model", default="small")

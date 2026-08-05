@@ -15,20 +15,24 @@ import json
 import os
 import re
 import shutil
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, select
 
-DEFAULT_CITARA_ROOT = Path("../citara-data")
-DEFAULT_OPENAI_RAW = Path("../citara-data/source-artifacts/bema/remote-openai")
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-# Ensure direct script runs use the renamed sibling data folder even when no .env is loaded.
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{DEFAULT_CITARA_ROOT / 'citara.db'}")
-os.environ.setdefault("SOURCE_ARTIFACT_ROOT", str(DEFAULT_CITARA_ROOT / "source-artifacts"))
-os.environ.setdefault("SOURCE_STATE_ROOT", str(DEFAULT_CITARA_ROOT / "import-state"))
-os.environ.setdefault("OBJECT_STORE_PATH", str(DEFAULT_CITARA_ROOT / "object-store"))
+from artifact_paths import apply_default_env, data_root
+
+DEFAULT_CITARA_ROOT = data_root()
+DEFAULT_OPENAI_RAW = DEFAULT_CITARA_ROOT / "source-artifacts" / "bema" / "remote-openai"
+
+# Ensure direct script runs use the sibling data folder even when no .env is loaded.
+apply_default_env(DEFAULT_CITARA_ROOT)
 
 from citara.connectors.podcasts.bema import (
     CURRENT_WEIGHT,
@@ -182,7 +186,7 @@ def build_legacy_chunked_from_raw(
     max_chars: int = 2400,
     overlap_chars: int = 250,
 ) -> list[dict[str, Any]]:
-    """Build sentence-aware BEMA_az-style chunked JSON from raw Whisper segments."""
+    """Build sentence-aware legacy-style chunked JSON from raw Whisper segments."""
     units = [
         {
             "text": text,
@@ -586,7 +590,7 @@ def main() -> None:
     parser.add_argument(
         "--rewrite-openai-chunked",
         action="store_true",
-        help="Regenerate BEMA_az-style *-oai-raw-chunked.json files from *-oai-raw.json before import",
+        help="Regenerate legacy-style *-oai-raw-chunked.json files from *-oai-raw.json before import",
     )
     parser.add_argument("--rewrite-start", type=int, help="First episode to rewrite when --rewrite-openai-chunked is set")
     parser.add_argument("--rewrite-end", type=int, help="Last episode to rewrite when --rewrite-openai-chunked is set")

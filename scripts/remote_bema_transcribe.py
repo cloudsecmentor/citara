@@ -102,7 +102,7 @@ def build_legacy_chunked(
     max_chars: int = 2400,
     overlap_chars: int = 250,
 ) -> list[dict[str, object]]:
-    """Group Whisper segments into BEMA_az-style chunked artifacts.
+    """Group Whisper segments into legacy-style chunked artifacts.
 
     Anchor logic: chunk metadata.start uses the **first word onset** when available,
     else falls back to the segment start.

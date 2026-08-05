@@ -15,18 +15,27 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.request
 from pathlib import Path
 from typing import Any, NamedTuple
 
-DEFAULT_REPO = Path("../citara")
-DEFAULT_DATA_ROOT = Path("../citara-data")
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from artifact_paths import data_root, repo_root
+
+DEFAULT_REPO = repo_root()
+DEFAULT_DATA_ROOT = data_root()
 DEFAULT_MANIFEST = DEFAULT_DATA_ROOT / "source-artifacts" / "a-book-like-no-other" / "remote-openai" / "approved-queue.json"
-DEFAULT_WORKER = "user@worker.example.invalid"
-DEFAULT_SSH_KEY = Path("~/.ssh/id_ed25519").expanduser()
-DEFAULT_REMOTE_ROOT = Path("/opt/citara-worker")
+# The transcription worker is deployment-specific: supply it with --worker or
+# CITARA_WORKER_SSH (e.g. "user@host"). There is deliberately no built-in default.
+DEFAULT_WORKER = os.getenv("CITARA_WORKER_SSH", "")
+DEFAULT_SSH_KEY = Path(os.getenv("CITARA_WORKER_SSH_KEY", "~/.ssh/id_ed25519")).expanduser()
+DEFAULT_REMOTE_ROOT = Path(os.getenv("CITARA_WORKER_ROOT", "/opt/citara-worker"))
 ARTIFACT_SUFFIXES = ("oai-raw.json", "oai-raw-chunked.json", "transcribe-stats.json")
 REQUIRED_ITEM_FIELDS = {
     "queue_number",
@@ -445,7 +454,12 @@ def parse_args() -> Config:
     parser.add_argument("--local-out", type=Path)
     parser.add_argument("--state-path", type=Path)
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO)
-    parser.add_argument("--worker", default=DEFAULT_WORKER)
+    parser.add_argument(
+        "--worker",
+        default=DEFAULT_WORKER,
+        required=not DEFAULT_WORKER,
+        help="Transcription worker SSH target, e.g. user@host. Defaults to $CITARA_WORKER_SSH.",
+    )
     parser.add_argument("--ssh-key", type=Path, default=DEFAULT_SSH_KEY)
     parser.add_argument("--remote-root", type=Path, default=DEFAULT_REMOTE_ROOT)
     parser.add_argument("--model", default="medium")

@@ -5,15 +5,19 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 from sqlalchemy import select
 
-DEFAULT_CITARA_ROOT = Path("../citara-data")
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{DEFAULT_CITARA_ROOT / 'citara.db'}")
-os.environ.setdefault("SOURCE_ARTIFACT_ROOT", str(DEFAULT_CITARA_ROOT / "source-artifacts"))
-os.environ.setdefault("SOURCE_STATE_ROOT", str(DEFAULT_CITARA_ROOT / "import-state"))
-os.environ.setdefault("OBJECT_STORE_PATH", str(DEFAULT_CITARA_ROOT / "object-store"))
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from artifact_paths import apply_default_env, data_root
+
+DEFAULT_CITARA_ROOT = data_root()
+apply_default_env(DEFAULT_CITARA_ROOT)
 
 from citara.core.db import SessionLocal, init_db
 from citara.core.entities import attach_source_entities

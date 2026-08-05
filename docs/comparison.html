@@ -218,7 +218,7 @@
       <li><strong>Source fidelity as first-class design.</strong> Uploaded originals preserved; external links store URL + extracted text + timestamps; optional temp media. Normalized transcript schemas (<code>citara.transcript.normalized.v1</code>), import payloads, pipeline state.</li>
       <li><strong>Podcast connector architecture.</strong> Config-driven connectors (<code>citara.sources.json</code>), resumable pipeline state, source-specific behavior, and <strong>retrieval preference weights</strong> (prefer current episode over legacy version).</li>
       <li><strong>Context packs, not just search.</strong> <code>retrieve_context_pack</code> returns compact, citation-labeled evidence for agent answers — including clickable timestamp URLs — not just a list of hits.</li>
-      <li><strong>Code repo vs corpus separation.</strong> Sibling <code>../citara/</code> for DB, artifacts, and import state (outside git). Documented as a rebuildable ingestion contract, not an afterthought.</li>
+      <li><strong>Code repo vs corpus separation.</strong> Sibling <code>../citara-data/</code> for DB, artifacts, and import state (outside git). Documented as a rebuildable ingestion contract, not an afterthought.</li>
     </ul>
 
     <h2>5. Feature matrix (high level)</h2>
