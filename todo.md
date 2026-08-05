@@ -10,8 +10,7 @@ Completed items are pruned from this file once done; see `CHANGELOG.md` and git 
 
 ## P0 — Before the first public push (blockers)
 
-- [ ] **Flip the repo to public** once the remaining P0 item is closed: `gh repo edit cloudsecmentor/citara --visibility public`. (Verified 2026-08-04: still `PRIVATE`.)
-- [ ] **Run the manifest rebuild against the real tree.** `--rebuild-from-artifacts` shipped in 0.3.0 but has not been run on `citara-data/`, whose `organization-manifest.json` is still the empty one from 2026-07-30. Run `--rebuild-from-artifacts --no-hash` first to check the shape, then without `--no-hash` for the real index (~1.3 GB, a few minutes).
+- [ ] **Flip the repo to public**: `gh repo edit cloudsecmentor/citara --visibility public`. Now the only P0 item — the manifest rebuild that used to block it shipped in 0.3.0, was corrected in 0.3.1, and has been run against `citara-data/` (10,244 artifacts and 8 state files indexed, 2026-08-05). Verified 2026-08-05: repo is still `PRIVATE`.
 
 ## P1 — Multilingual query & response support
 
