@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-07
+
+Completes the corpus-location fix that `0.4.0` only half-shipped.
+
+### Fixed
+
+- `src/citara/core/config.py` still defaulted to `../citara` for `DATABASE_URL`,
+  `OBJECT_STORE_PATH`, `SOURCE_ARTIFACT_ROOT`, and `SOURCE_STATE_ROOT`. `0.4.0` corrected
+  `scripts/artifact_paths.py`, `.env.example`, and the docs but missed the library itself, so the
+  bug it claimed to fix — `../citara` resolving back into a checkout named `citara` — was still
+  live for anything importing `citara.core`. That included every podcast connector, whose
+  `DEFAULT_ARTIFACT_DIR` and `DEFAULT_STATE` derive from these settings. Defaults are now
+  `../citara-data`, honoring `CITARA_DATA_ROOT`.
+- `tests/test_bema_textinus_pipelines.py::test_specific_pipeline_defaults_use_external_citara_roots`
+  asserted the connector defaults pointed at `repo_root.parent / "citara"` — the repository itself.
+  The test encoded the bug as expected behavior, which is why the suite stayed green through
+  `0.4.0`. It now asserts the corrected location, alongside a new test that resolves each default
+  and fails if it lands inside the repo.
+
+### Added
+
+- `tests/test_config_defaults.py`: guards that `CITARA_DATA_ROOT` is honored, that a trailing slash
+  is stripped before interpolation, that no `Settings` path default resolves inside the repository,
+  and that no `../citara/` literal reappears anywhere under `src/`.
+
+### Changed
+
+- `.env.example` and `README.md` no longer imply that creating a `.env` configures a bare-metal run.
+  Nothing in `src/` or `scripts/` calls `load_dotenv()`; configuration is read from the process
+  environment, and `.env` is consumed only by `docker compose`. Both documents now say so and show
+  `set -a; source .env; set +a`. Quick start no longer opens with `cp .env.example .env`, since the
+  built-in defaults are correct with no configuration at all.
+
+### Data & migrations
+
+- No Alembic migration required; the database schema is unchanged.
+- No corpus re-index or re-embed needed. Stored data remains backward compatible with `0.4.0`.
+- **Check where your data actually landed.** If you ran `0.4.0` or earlier on bare metal without
+  exporting `DATABASE_URL`/`SOURCE_ARTIFACT_ROOT`/`SOURCE_STATE_ROOT`, the library defaults wrote to
+  `../citara` — your checkout — so look for `citara.db`, `source-artifacts/`, `import-state/`, and
+  `object-store/` at the repository root and move them to `../citara-data`. `.gitignore` has
+  covered those paths since `0.4.0`, so they are ignored rather than committed, but they are still
+  in the wrong place. A `.env` alone will not have protected you unless you exported it.
+
 ## [0.4.0] - 2026-08-05
 
 Public-release hygiene pass. No runtime behavior changes, but the default corpus location moved, so

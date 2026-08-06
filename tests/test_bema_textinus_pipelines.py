@@ -15,7 +15,7 @@ def test_specific_pipeline_defaults_use_external_citara_roots():
     textinus = load_connector("textinus")
     bibleproject = load_connector("bibleproject")
     repo_root = Path(__file__).resolve().parents[1]
-    citara_root = repo_root.parent / "citara"
+    citara_root = repo_root.parent / "citara-data"
 
     assert bema.DEFAULT_ARTIFACT_DIR == citara_root / "source-artifacts" / "bema"
     assert bema.DEFAULT_STATE == citara_root / "import-state" / "bema_pipeline_state.json"
@@ -23,6 +23,18 @@ def test_specific_pipeline_defaults_use_external_citara_roots():
     assert textinus.DEFAULT_STATE == citara_root / "import-state" / "textinus_pipeline_state.json"
     assert bibleproject.DEFAULT_ARTIFACT_DIR == citara_root / "source-artifacts" / "bibleproject"
     assert bibleproject.DEFAULT_STATE == citara_root / "import-state" / "bibleproject_pipeline_state.json"
+
+
+def test_connector_defaults_are_actually_external_to_the_repo():
+    """The name of the test above was aspirational: `../citara` was the repo itself."""
+    repo_root = Path(__file__).resolve().parents[1]
+
+    for name in ("bema", "textinus", "bibleproject"):
+        connector = load_connector(name)
+        for default in (connector.DEFAULT_ARTIFACT_DIR, connector.DEFAULT_STATE):
+            resolved = Path(default).resolve()
+            assert resolved != repo_root, f"{name}: {default} is the repo itself"
+            assert repo_root not in resolved.parents, f"{name}: {default} is inside the repo"
 
 
 BEMA_RSS = """<?xml version="1.0" encoding="UTF-8"?>
