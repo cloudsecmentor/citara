@@ -11,13 +11,23 @@ def _get_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _data_root() -> str:
+    """Corpus location, defaulting to a sibling directory OUTSIDE the checkout.
+
+    `../citara` would resolve back into a checkout named `citara`, which is how corpus
+    data previously ended up inside the repository. Keep this pointing at a sibling that
+    cannot collide with the checkout's own name.
+    """
+    return os.getenv("CITARA_DATA_ROOT", "../citara-data").rstrip("/")
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///../citara/citara.db")
+    database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{_data_root()}/citara.db")
     object_store_type: str = os.getenv("OBJECT_STORE_TYPE", "local")
-    object_store_path: str = os.getenv("OBJECT_STORE_PATH", "../citara/object-store")
-    source_artifact_root: str = os.getenv("SOURCE_ARTIFACT_ROOT", "../citara/source-artifacts")
-    source_state_root: str = os.getenv("SOURCE_STATE_ROOT", "../citara/import-state")
+    object_store_path: str = os.getenv("OBJECT_STORE_PATH", f"{_data_root()}/object-store")
+    source_artifact_root: str = os.getenv("SOURCE_ARTIFACT_ROOT", f"{_data_root()}/source-artifacts")
+    source_state_root: str = os.getenv("SOURCE_STATE_ROOT", f"{_data_root()}/import-state")
     embedding_provider: str = os.getenv("EMBEDDING_PROVIDER", "local")
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "deterministic-hash-v1")
     embedding_dimensions: int = int(os.getenv("EMBEDDING_DIMENSIONS", "8"))

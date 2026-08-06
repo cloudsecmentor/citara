@@ -75,11 +75,19 @@ uv sync --extra dev
 uv run pytest -q
 ```
 
-Point Citara at a corpus directory and create the database:
+Create the database. The built-in defaults already write to `../citara-data`, outside the repo, so
+this works with no configuration at all:
 
 ```bash
-cp .env.example .env      # defaults write to ../citara-data, outside the repo
 uv run alembic upgrade head
+```
+
+To change any of it, copy `.env.example` and **export** the values — Citara reads its configuration
+from the process environment, and does not load `.env` itself outside of Docker:
+
+```bash
+cp .env.example .env
+set -a; source .env; set +a      # required: `.env` alone has no effect on `uv run`
 ```
 
 Start the API and add your first note:
@@ -383,7 +391,11 @@ an empty result set is explainable rather than silent.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and edit. That file is the full reference; the essentials:
+Citara reads configuration from the process environment. `docker compose` picks up `.env`
+automatically; for a bare-metal `uv run`, export the values first (`set -a; source .env; set +a`) or
+they are silently ignored in favor of the defaults below.
+
+`.env.example` is the full reference; the essentials:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
