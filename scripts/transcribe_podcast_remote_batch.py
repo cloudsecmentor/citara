@@ -37,6 +37,7 @@ DEFAULT_WORKER = os.getenv("CITARA_WORKER_SSH", "")
 DEFAULT_SSH_KEY = Path(os.getenv("CITARA_WORKER_SSH_KEY", "~/.ssh/id_ed25519")).expanduser()
 DEFAULT_REMOTE_ROOT = Path(os.getenv("CITARA_WORKER_ROOT", "/opt/citara-worker"))
 ARTIFACT_SUFFIXES = ("oai-raw.json", "oai-raw-chunked.json", "transcribe-stats.json")
+AUDIO_FETCH_STRATEGIES = frozenset({"http", "yt-dlp"})
 REQUIRED_ITEM_FIELDS = {
     "queue_number",
     "episode_label",
@@ -80,6 +81,8 @@ class Config(NamedTuple):
     inter_episode_delay_fraction: float
     limit: int | None
     dry_run: bool
+    # Trails the required fields so existing positional/keyword constructions stay valid.
+    initial_prompt: str | None = None
 
 
 def run(argv: list[str], *, timeout: int | None = None) -> subprocess.CompletedProcess[str]:
@@ -157,6 +160,13 @@ def load_manifest(path: Path) -> dict[str, Any]:
         for field in ("episode_label", "title", "audio_url", "canonical_url"):
             if not isinstance(item[field], str) or not item[field].strip():
                 raise ValueError(f"episode {index} has invalid {field}")
+        # An unknown strategy must fail here: silently falling back to a plain GET would
+        # "succeed" against a watch page and stage an HTML file as if it were audio.
+        fetch_strategy = item.get("audio_fetch", "http")
+        if fetch_strategy not in AUDIO_FETCH_STRATEGIES:
+            raise ValueError(
+                f"episode {index} has unknown audio_fetch {fetch_strategy!r}; expected one of {sorted(AUDIO_FETCH_STRATEGIES)}"
+            )
         duration = item["duration_seconds"]
         if not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration <= 0:
             raise ValueError(f"episode {index} has invalid duration_seconds")
@@ -208,6 +218,53 @@ def download_with_retries(url: str, destination: Path, *, attempts: int = 3) -> 
             if attempt < attempts:
                 time.sleep(2**attempt)
     raise RuntimeError(f"audio download failed after {attempts} attempts: {last_error}") from last_error
+
+
+def download_with_yt_dlp(url: str, destination: Path, *, attempts: int = 3) -> float:
+    """Resolve and extract audio from a media-site page URL (YouTube and friends).
+
+    Direct media URLs on these sites are short-lived and signed, so the page URL has to be
+    re-resolved at fetch time rather than stored in the manifest.
+    """
+    if attempts < 1:
+        raise ValueError("download attempts must be at least 1")
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        started = time.monotonic()
+        destination.unlink(missing_ok=True)
+        try:
+            run(
+                [
+                    "yt-dlp",
+                    "--no-playlist",
+                    "--extract-audio",
+                    "--audio-format",
+                    "mp3",
+                    "--audio-quality",
+                    "0",
+                    # yt-dlp appends the audio extension itself, so hand it the stem.
+                    "--output",
+                    str(destination.with_suffix("")) + ".%(ext)s",
+                    url,
+                ],
+                timeout=1800,
+            )
+            if not destination.exists() or destination.stat().st_size == 0:
+                raise RuntimeError(f"yt-dlp produced no audio at {destination}")
+            return time.monotonic() - started
+        except Exception as exc:
+            last_error = exc
+            destination.unlink(missing_ok=True)
+            if attempt < attempts:
+                time.sleep(2**attempt)
+    raise RuntimeError(f"yt-dlp audio extraction failed after {attempts} attempts: {last_error}") from last_error
+
+
+def fetch_audio(item: dict[str, Any], destination: Path, *, attempts: int = 3) -> float:
+    """Fetch one item's audio, choosing the strategy the manifest asked for."""
+    if item.get("audio_fetch") == "yt-dlp":
+        return download_with_yt_dlp(item["audio_url"], destination, attempts=attempts)
+    return download_with_retries(item["audio_url"], destination, attempts=attempts)
 
 
 def atomic_scp_json(key: Path, worker: str, remote_path: str, local_final: Path) -> Any:
@@ -282,6 +339,8 @@ def _remote_command(config: Config, item: dict[str, Any], remote_out: Path, remo
         "--best-of",
         str(config.best_of),
     ]
+    if config.initial_prompt:
+        parts += ["--initial-prompt", config.initial_prompt]
     return " ".join(shlex.quote(str(part)) for part in parts)
 
 
@@ -291,6 +350,11 @@ def orchestrate(config: Config) -> dict[str, Any]:
         raise ValueError("--limit must be non-negative")
     if config.inter_episode_delay_fraction < 0:
         raise ValueError("--inter-episode-delay-fraction must be non-negative")
+    # A corpus glossary belongs with the corpus, so the manifest carries it unless overridden.
+    if config.initial_prompt is None:
+        manifest_prompt = manifest.get("initial_prompt")
+        if isinstance(manifest_prompt, str) and manifest_prompt.strip():
+            config = config._replace(initial_prompt=manifest_prompt.strip())
 
     summary: list[dict[str, Any]] = []
     pending: list[dict[str, Any]] = []
@@ -359,7 +423,7 @@ def orchestrate(config: Config) -> dict[str, Any]:
             )
             with tempfile.TemporaryDirectory(prefix=f"citara-podcast-q{number:03d}-") as temporary_dir:
                 local_audio = Path(temporary_dir) / f"{item['artifact_stem']}.mp3"
-                download_seconds = download_with_retries(item["audio_url"], local_audio, attempts=config.download_attempts)
+                download_seconds = fetch_audio(item, local_audio, attempts=config.download_attempts)
                 # Cleanup is required even when SCP leaves a partial remote file and exits non-zero.
                 staged = True
                 run(scp_args(config.ssh_key, str(local_audio), f"{config.worker}:{remote_audio}"), timeout=900)
@@ -467,12 +531,28 @@ def parse_args() -> Config:
     parser.add_argument("--compute-type", default="int8")
     parser.add_argument("--beam-size", type=int, default=5)
     parser.add_argument("--best-of", type=int, default=1)
+    parser.add_argument(
+        "--initial-prompt",
+        default=None,
+        help="Vocabulary hint for faster-whisper. Overrides the manifest's initial_prompt when set.",
+    )
+    parser.add_argument(
+        "--initial-prompt-file",
+        type=Path,
+        default=None,
+        help="Read the vocabulary hint from a file instead of the command line.",
+    )
     parser.add_argument("--transcribe-timeout-seconds", type=int, default=28800)
     parser.add_argument("--download-attempts", type=int, default=3)
     parser.add_argument("--inter-episode-delay-fraction", type=float, default=0.10)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.initial_prompt and args.initial_prompt_file:
+        raise ValueError("pass at most one of --initial-prompt and --initial-prompt-file")
+    initial_prompt = args.initial_prompt
+    if args.initial_prompt_file:
+        initial_prompt = args.initial_prompt_file.read_text(encoding="utf-8").strip()
     local_out = args.local_out or args.manifest.parent
     state_path = args.state_path or local_out / "transcription-state.json"
     return Config(
@@ -488,6 +568,7 @@ def parse_args() -> Config:
         compute_type=args.compute_type,
         beam_size=args.beam_size,
         best_of=args.best_of,
+        initial_prompt=initial_prompt,
         timeout_seconds=args.transcribe_timeout_seconds,
         download_attempts=args.download_attempts,
         inter_episode_delay_fraction=args.inter_episode_delay_fraction,
