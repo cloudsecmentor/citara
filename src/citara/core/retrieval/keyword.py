@@ -10,6 +10,9 @@ from citara.core.config import settings
 from citara.core.entities import resolve_entity_ids
 from citara.core.models import Chunk, Source, SourceEntity
 
+# Source types whose chunks carry playable offsets, so citations get a deep link.
+TIMESTAMPED_SOURCE_TYPES = frozenset({"podcast_episode", "youtube_video"})
+
 
 @dataclass(frozen=True)
 class SearchResult:
@@ -28,15 +31,16 @@ class SearchResult:
 
 
 def _citation_label(source: Source, chunk: Chunk) -> str:
-    if source.source_type == "podcast_episode":
-        show_title = source.metadata_json.get("show_title") or source.title
+    if source.source_type in TIMESTAMPED_SOURCE_TYPES:
+        metadata = source.metadata_json or {}
+        container_title = metadata.get("show_title") or metadata.get("channel") or source.title
         timestamp = _format_timestamp(chunk.start_ms or 0)
-        return f"{show_title}, {source.title}, {timestamp}"
+        return f"{container_title}, {source.title}, {timestamp}"
     return f"{source.title}, chunk {chunk.chunk_index}"
 
 
 def _timestamp_url(source: Source, chunk: Chunk) -> str | None:
-    if source.source_type != "podcast_episode" or not source.canonical_url or chunk.start_ms is None:
+    if source.source_type not in TIMESTAMPED_SOURCE_TYPES or not source.canonical_url or chunk.start_ms is None:
         return None
     separator = "&" if "?" in source.canonical_url else "?"
     return f"{source.canonical_url}{separator}t={chunk.start_ms // 1000}"

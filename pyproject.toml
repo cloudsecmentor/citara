@@ -52,6 +52,7 @@ dev = [
   "ruff>=0.8",
   "mypy>=1.13",
   "pre-commit>=4.0",
+  "yt-dlp>=2026.7.4",
 ]
 
 [tool.pytest.ini_options]

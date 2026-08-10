@@ -202,6 +202,11 @@ def main() -> None:
     parser.add_argument("--compute-type", default="int8")
     parser.add_argument("--beam-size", type=int, default=5)
     parser.add_argument("--best-of", type=int, default=1, help="Reduce CPU memory/time (default faster-whisper is 5).")
+    parser.add_argument(
+        "--initial-prompt",
+        default=None,
+        help="Vocabulary hint biasing decoding toward domain terms (names, transliterations).",
+    )
     args = parser.parse_args()
 
     episode_i = int(args.episode)
@@ -248,6 +253,7 @@ def main() -> None:
             word_timestamps=True,
             beam_size=args.beam_size,
             best_of=args.best_of,
+            initial_prompt=args.initial_prompt,
         )
 
         segments: list[dict[str, object]] = []
@@ -296,6 +302,7 @@ def main() -> None:
                 "model": args.model,
                 "device": args.device,
                 "compute_type": args.compute_type,
+                "initial_prompt": args.initial_prompt,
             },
         }
 
@@ -315,6 +322,7 @@ def main() -> None:
             "model": args.model,
             "device": args.device,
             "compute_type": args.compute_type,
+            "initial_prompt": args.initial_prompt,
             "downloaded_on_worker": downloaded_on_worker,
             "download_seconds": download_seconds,
             "model_load_seconds": model_load_seconds,
