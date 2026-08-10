@@ -35,6 +35,8 @@ from artifact_paths import data_root
 DEFAULT_CITARA_ROOT = data_root()
 CORPUS_SLUG = "a-book-like-no-other"
 SHOW_TITLE = "A Book Like No Other"
+SOURCE_TREE_TYPE = "podcast"
+ITEM_TYPE = "podcast_episode"
 FEED_URL = "https://rss.buzzsprout.com/2113502.rss"
 APPLE_PODCAST_ID = "1667348746"
 PUBLISHER = "Aleph Beta"
@@ -69,6 +71,8 @@ ALEPH_BETA_ENTITIES = [
         "aliases": ["Rabbi Fohrman", "David Fohrman", "Rabbi Foreman"],
     },
 ]
+DEFAULT_TAGS = tuple(TAGS)
+DEFAULT_ALEPH_BETA_ENTITIES = tuple(ALEPH_BETA_ENTITIES)
 REQUIRED_FIELDS = {
     "queue_number",
     "episode_label",
@@ -193,20 +197,23 @@ def load_manifest(path: Path) -> dict[str, Any]:
 
 def configure_corpus(manifest: dict[str, Any]) -> None:
     """Apply optional corpus metadata while retaining BLNO-compatible defaults."""
-    global CORPUS_SLUG, SHOW_TITLE, FEED_URL, APPLE_PODCAST_ID
+    global CORPUS_SLUG, SHOW_TITLE, SOURCE_TREE_TYPE, ITEM_TYPE, FEED_URL, APPLE_PODCAST_ID
     global PUBLISHER, PROVIDER, ACRONYM, ALIASES, TAGS, ALEPH_BETA_ENTITIES
 
     CORPUS_SLUG = str(manifest["corpus_slug"])
-    SHOW_TITLE = str(manifest.get("show_title") or SHOW_TITLE)
-    FEED_URL = str(manifest.get("feed_url") or FEED_URL)
-    APPLE_PODCAST_ID = str(manifest.get("apple_podcast_id") or APPLE_PODCAST_ID)
-    PUBLISHER = str(manifest.get("publisher") or PUBLISHER)
-    PROVIDER = str(manifest.get("provider") or PROVIDER)
-    acronym = manifest.get("acronym", ACRONYM)
+    legacy_blno = CORPUS_SLUG == "a-book-like-no-other"
+    SHOW_TITLE = str(manifest.get("show_title") or ("A Book Like No Other" if legacy_blno else CORPUS_SLUG))
+    SOURCE_TREE_TYPE = str(manifest.get("source_tree_type") or "podcast")
+    ITEM_TYPE = str(manifest.get("item_type") or ("podcast_episode" if SOURCE_TREE_TYPE == "podcast" else "source_item"))
+    FEED_URL = str(manifest.get("feed_url") or ("https://rss.buzzsprout.com/2113502.rss" if legacy_blno else ""))
+    APPLE_PODCAST_ID = str(manifest.get("apple_podcast_id") or ("1667348746" if legacy_blno else ""))
+    PUBLISHER = str(manifest.get("publisher") or ("Aleph Beta" if legacy_blno else ""))
+    PROVIDER = str(manifest.get("provider") or ("buzzsprout" if legacy_blno else ""))
+    acronym = manifest.get("acronym", "BLNO" if legacy_blno else None)
     ACRONYM = str(acronym) if acronym else None
-    ALIASES = [str(value) for value in manifest.get("aliases", ALIASES)]
-    TAGS = [str(value) for value in manifest.get("tags", TAGS)]
-    entities = manifest.get("entities", ALEPH_BETA_ENTITIES)
+    ALIASES = [str(value) for value in manifest.get("aliases", ["BLNO"] if legacy_blno else [])]
+    TAGS = [str(value) for value in manifest.get("tags", DEFAULT_TAGS if legacy_blno else [])]
+    entities = manifest.get("entities", list(DEFAULT_ALEPH_BETA_ENTITIES) if legacy_blno else [])
     if not isinstance(entities, list) or not all(isinstance(value, dict) for value in entities):
         raise ValueError("manifest entities must be a list of objects")
     ALEPH_BETA_ENTITIES = entities
@@ -319,7 +326,7 @@ def segments_from_candidate(candidate: Candidate) -> list[dict[str, Any]]:
         metadata_json: dict[str, Any] = {
             "source_metadata": source_metadata,
             "source_tree_slug": CORPUS_SLUG,
-            "source_tree_type": "podcast",
+            "source_tree_type": SOURCE_TREE_TYPE,
             "chunk_anchor": "first_word_timestamp",
         }
         if timestamp_url:
@@ -348,7 +355,7 @@ def stable_item_id(item: dict[str, Any]) -> str:
 def generated_metadata(item: dict[str, Any], stats: dict[str, Any], item_dir: Path, candidate: Candidate) -> dict[str, Any]:
     metadata = {
         "source_tree_slug": CORPUS_SLUG,
-        "source_tree_type": "podcast",
+        "source_tree_type": SOURCE_TREE_TYPE,
         "show_title": SHOW_TITLE,
         "series_title": SHOW_TITLE,
         "aliases": list(ALIASES),
@@ -361,9 +368,6 @@ def generated_metadata(item: dict[str, Any], stats: dict[str, Any], item_dir: Pa
         "episode_guid": item["guid"],
         "episode_duration_seconds": item["duration_seconds"],
         "audio_url": item["audio_url"],
-        "feed_url": FEED_URL,
-        "apple_podcast_id": APPLE_PODCAST_ID,
-        "apple_id": APPLE_PODCAST_ID,
         "model": stats["model"],
         "transcription_model": stats["model"],
         "transcription_device": stats["device"],
@@ -382,6 +386,11 @@ def generated_metadata(item: dict[str, Any], stats: dict[str, Any], item_dir: Pa
     }
     if ACRONYM:
         metadata["acronym"] = ACRONYM
+    if FEED_URL:
+        metadata["feed_url"] = FEED_URL
+    if APPLE_PODCAST_ID:
+        metadata["apple_podcast_id"] = APPLE_PODCAST_ID
+        metadata["apple_id"] = APPLE_PODCAST_ID
     return metadata
 
 
@@ -456,9 +465,9 @@ def write_item_artifacts(
         {
             "schema": "citara.source_item.v1",
             "source_tree_slug": CORPUS_SLUG,
-            "source_tree_type": "podcast",
+            "source_tree_type": SOURCE_TREE_TYPE,
             "item_id": metadata["source_item_id"],
-            "item_type": "podcast_episode",
+            "item_type": ITEM_TYPE,
             "title": title,
             "canonical_url": item["canonical_url"],
             "language": "en",

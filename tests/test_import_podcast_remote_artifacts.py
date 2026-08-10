@@ -342,3 +342,46 @@ def test_manifest_can_configure_another_podcast_corpus(tmp_path: Path) -> None:
     assert importer.SHOW_TITLE == "Parsha Lab from Aleph Beta"
     assert importer.PROVIDER == "soundcloud"
     assert importer.TAGS == ["aleph-beta", "parsha-lab"]
+
+
+def test_manifest_imports_youtube_corpus_without_podcast_metadata(tmp_path: Path) -> None:
+    citara_root = tmp_path / "citara-data"
+    remote_root = citara_root / "source-artifacts" / "weekly-parsha-experiment" / "remote-openai"
+    item = episode(guid="youtube-VIIkUeXFFnY")
+    item["artifact_stem"] = "q001-yt-viikuexffny"
+    item["audio_url"] = "https://www.youtube.com/watch?v=VIIkUeXFFnY"
+    item["canonical_url"] = item["audio_url"]
+    manifest_path = remote_root / "approved-queue.json"
+    write_json(
+        manifest_path,
+        {
+            "schema_version": 1,
+            "corpus_slug": "weekly-parsha-experiment",
+            "remote_namespace": "weekly-parsha-experiment-approved",
+            "show_title": "Weekly Parsha Experiment",
+            "source_tree_type": "video_channel",
+            "item_type": "youtube_video",
+            "publisher": "Aleph Beta",
+            "provider": "youtube",
+            "episodes": [item],
+        },
+    )
+    make_triplet(remote_root, item)
+
+    results = importer.run_import(citara_root=citara_root, manifest_path=manifest_path)
+
+    assert results[0]["status"] == "imported"
+    with importer.SessionLocal() as session:
+        source = session.execute(select(Source)).scalar_one()
+        metadata = source.metadata_json
+        assert metadata["source_tree_type"] == "video_channel"
+        assert source.provider == "youtube"
+        assert "acronym" not in metadata
+        assert metadata["aliases"] == []
+        assert "feed_url" not in metadata
+        assert "apple_podcast_id" not in metadata
+        assert "apple_id" not in metadata
+    item_dir = citara_root / "source-artifacts" / "weekly-parsha-experiment" / "items" / importer.stable_item_id(item)
+    source_artifact = json.loads((item_dir / "source.json").read_text(encoding="utf-8"))
+    assert source_artifact["source_tree_type"] == "video_channel"
+    assert source_artifact["item_type"] == "youtube_video"
