@@ -308,6 +308,7 @@ def retrieve_context_pack(
             "chunk_id": result.chunk_id,
             "text": result.text,
             "score": result.score,
+            "transcript_provenance": result.transcript_provenance,
             "citation": {
                 "label": result.citation_label,
                 "source_url": result.canonical_url,
@@ -315,6 +316,9 @@ def retrieve_context_pack(
                 "page_number": result.page_number,
                 "start_ms": result.start_ms,
                 "end_ms": result.end_ms,
+                "timestamp_provenance": result.timestamp_provenance,
+                "timestamp_precision": result.timestamp_precision,
+                "citation_anchor": result.citation_anchor,
             },
         }
         if translate_quotes:

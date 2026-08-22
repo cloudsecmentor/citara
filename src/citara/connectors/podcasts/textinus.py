@@ -87,6 +87,16 @@ def parse_rss_items(rss_text: str) -> tuple[str, list[dict[str, Any]]]:
     for item in channel.findall("item"):
         description = clean_html_text(_item_raw(item, "description"))
         duration = _item_text(item, "itunes:duration")
+        # This feed's <link> is a podcasters/creators.spotify.com page, which
+        # ignores the `?t=` parameter that citation deep links are built from
+        # (see core/retrieval/base._timestamp_url). The playable equivalent is
+        # an open.spotify.com episode URL, but the two use unrelated id spaces
+        # and the feed carries no Spotify episode id, so it cannot be derived
+        # here. Resolving it needs the Spotify Web API, which this connector
+        # deliberately does not depend on -- ingestion would then need
+        # credentials to produce correct links. Run
+        # `scripts/fix_spotify_episode_urls.py` after importing; it is
+        # idempotent and repoints any stale URLs it finds.
         link = _item_text(item, "link")
         title = _item_text(item, "title") or "Untitled episode"
         items.append(

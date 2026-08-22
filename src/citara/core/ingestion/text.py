@@ -10,6 +10,7 @@ from citara.core.embeddings.service import embed_chunks
 from citara.core.jobs import record_succeeded_ingestion_job
 from citara.core.language.detect import detect_language_code
 from citara.core.models import Chunk, Source
+from citara.core.retrieval.fts import index_chunks
 from citara.core.tenants import ensure_local_identity
 
 
@@ -61,6 +62,7 @@ def add_text_source(
 
     session.flush()
     embed_chunks(session, chunks, tenant_id=tenant_id)
+    index_chunks(session, chunks)
     record_succeeded_ingestion_job(
         session,
         tenant_id=tenant_id,

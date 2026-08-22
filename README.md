@@ -60,7 +60,7 @@ around the opposite assumption: **the citation is the product.**
 | Transcripts | VTT + HTML normalization, approximate timestamps for untimed transcripts, clickable timestamp links |
 | Storage | SQLite or Postgres + pgvector, Alembic migrations |
 | Embeddings | Deterministic offline provider, OpenAI, Azure AI Foundry / Azure OpenAI |
-| Retrieval | Keyword, vector, and hybrid (reciprocal rank fusion) with per-source weights |
+| Retrieval | BM25 keyword (SQLite FTS5), vector, and hybrid (reciprocal rank fusion) with per-source weights |
 | Language | Unicode-aware tokenization, dependency-free language detection, cross-language query translation |
 | Interfaces | MCP stdio server, FastAPI HTTP API, Docker Compose runtime |
 
@@ -82,12 +82,14 @@ this works with no configuration at all:
 uv run alembic upgrade head
 ```
 
-To change any of it, copy `.env.example` and **export** the values — Citara reads its configuration
-from the process environment, and does not load `.env` itself outside of Docker:
+To change any of it, copy `.env.example` to `.env` — it is loaded automatically. Real environment
+variables take precedence, so an explicit export still overrides the file, and
+`CITARA_SKIP_DOTENV=1` ignores it entirely:
 
 ```bash
 cp .env.example .env
-set -a; source .env; set +a      # required: `.env` alone has no effect on `uv run`
+# Optional: exporting still works and wins over .env
+set -a; source .env; set +a
 ```
 
 Start the API and add your first note:
@@ -391,9 +393,12 @@ an empty result set is explainable rather than silent.
 
 ## Configuration
 
-Citara reads configuration from the process environment. `docker compose` picks up `.env`
-automatically; for a bare-metal `uv run`, export the values first (`set -a; source .env; set +a`) or
-they are silently ignored in favor of the defaults below.
+Citara reads configuration from the process environment, and loads a `.env` file into it at import
+time to fill any gaps. Precedence is: real environment variable → `.env` → built-in default. Point
+`CITARA_ENV_FILE` at a different file, or set `CITARA_SKIP_DOTENV=1` to disable the file entirely.
+
+Settings bind when `citara.core.config` is first imported, so a variable set programmatically must
+be set before importing `citara`.
 
 `.env.example` is the full reference; the essentials:
 
@@ -561,7 +566,11 @@ Citara is `0.x` software. Known gaps, stated plainly:
   `faster-whisper` pipeline scripts.
 - PDF, OCR, screenshots, and general web-article ingestion are intentionally deferred.
 - Hybrid retrieval fuses keyword and vector rankings with reciprocal rank fusion; cross-encoder
-  reranking is not implemented.
+  reranking is not implemented, and the fusion is unweighted (keyword and vector contribute
+  equally).
+- BM25 keyword ranking is served by SQLite's FTS5 index. Postgres has no native BM25, so it falls
+  back to a full-scan BM25 implementation — correct, and comparably ranked, but O(corpus) per
+  query. SQLite is the better-supported backend today.
 - Embeddings are not multilingual. The default deterministic provider and `EMBEDDING_DIMENSIONS` are
   English-tuned; cross-language retrieval works via query translation and fusion, not a shared
   multilingual vector space. There is no curated proper-noun glossary.

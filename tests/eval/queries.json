@@ -1,0 +1,179 @@
+[
+  {
+    "id": "ki-moses-rock",
+    "query": "why did Moses hit the rock",
+    "kind": "known_item",
+    "relevant_source_titles": ["Why Did Moses Hit The Rock"]
+  },
+  {
+    "id": "ki-abraham-wandering",
+    "query": "was Abraham the first wandering Jew",
+    "kind": "known_item",
+    "relevant_source_titles": ["Parshat Lech Lecha"]
+  },
+  {
+    "id": "ki-anger-murder",
+    "query": "how is anger the same as murder",
+    "kind": "known_item",
+    "relevant_source_titles": ["How Is Anger the Same as Murder"]
+  },
+  {
+    "id": "ki-what-is-bema",
+    "query": "what is BEMA",
+    "kind": "known_item",
+    "relevant_source_titles": ["What Is BEMA"]
+  },
+  {
+    "id": "ki-angels-tabernacle",
+    "query": "are there angels in the tabernacle",
+    "kind": "known_item",
+    "relevant_source_titles": ["Parshat Terumah"]
+  },
+  {
+    "id": "ki-man-of-lawlessness",
+    "query": "the man of lawlessness in 2 Thessalonians",
+    "kind": "known_item",
+    "relevant_source_titles": ["Man of Lawlessness"]
+  },
+  {
+    "id": "ki-light-of-world",
+    "query": "Jesus as the light of the world in John",
+    "kind": "known_item",
+    "relevant_source_titles": ["John — Light of the World"]
+  },
+  {
+    "id": "ki-chaotic-waters",
+    "query": "chaotic waters and baptism as a design pattern",
+    "kind": "known_item",
+    "relevant_source_titles": ["Chaotic Waters & Baptism"]
+  },
+  {
+    "id": "ki-god-or-gods",
+    "query": "god or gods in the Hebrew Bible",
+    "kind": "known_item",
+    "relevant_source_titles": ["God or gods"]
+  },
+  {
+    "id": "ki-which-laws-apply",
+    "query": "which Old Testament laws still apply today",
+    "kind": "known_item",
+    "relevant_source_titles": ["Which Laws Still Apply"]
+  },
+  {
+    "id": "ki-land-ownership-pesach",
+    "query": "how is land ownership connected to the Pesach Sheni offering",
+    "kind": "known_item",
+    "relevant_source_titles": ["Pesach Sheni"]
+  },
+  {
+    "id": "ki-vulnerable-with-god",
+    "query": "how can I be vulnerable with God",
+    "kind": "known_item",
+    "relevant_source_titles": ["Beha'alotecha"]
+  },
+
+  {
+    "id": "top-sabbath-rest",
+    "query": "what does it mean to rest on the sabbath",
+    "kind": "topical"
+  },
+  {
+    "id": "top-suffering-lament",
+    "query": "how should I understand suffering and lament",
+    "kind": "topical"
+  },
+  {
+    "id": "top-covenant-ane",
+    "query": "the meaning of covenant in its ancient near eastern context",
+    "kind": "topical"
+  },
+  {
+    "id": "top-exodus-significance",
+    "query": "what is the significance of the exodus story",
+    "kind": "topical"
+  },
+  {
+    "id": "top-exile-return",
+    "query": "how does the Bible talk about exile and coming home",
+    "kind": "topical"
+  },
+  {
+    "id": "top-wealth-generosity",
+    "query": "teaching about wealth and generosity",
+    "kind": "topical"
+  },
+  {
+    "id": "top-forgiveness",
+    "query": "forgiveness and reconciliation between people",
+    "kind": "topical"
+  },
+  {
+    "id": "top-kingdom-of-god",
+    "query": "what is the kingdom of God",
+    "kind": "topical"
+  },
+  {
+    "id": "top-anger-virtue",
+    "query": "dealing with wrath as a vice",
+    "kind": "topical"
+  },
+  {
+    "id": "top-women-scripture",
+    "query": "the role of women in scripture",
+    "kind": "topical"
+  },
+  {
+    "id": "top-temple-presence",
+    "query": "temple imagery and the presence of God",
+    "kind": "topical"
+  },
+  {
+    "id": "top-discipleship",
+    "query": "discipleship and spiritual formation",
+    "kind": "topical"
+  },
+  {
+    "id": "top-jesus-fulfills-law",
+    "query": "how do the gospels portray Jesus fulfilling the law",
+    "kind": "topical"
+  },
+
+  {
+    "id": "lex-melchizedek",
+    "query": "Melchizedek",
+    "kind": "lexical"
+  },
+  {
+    "id": "lex-qohelet",
+    "query": "Qohelet",
+    "kind": "lexical"
+  },
+  {
+    "id": "lex-beatitudes",
+    "query": "Beatitudes",
+    "kind": "lexical"
+  },
+  {
+    "id": "lex-en-gedi",
+    "query": "En Gedi",
+    "kind": "lexical"
+  },
+  {
+    "id": "lex-shir-hamaalot",
+    "query": "Shir HaMaalot",
+    "kind": "lexical"
+  },
+
+  {
+    "id": "stop-exodus-covenant",
+    "query": "what does the exodus teach about covenant",
+    "kind": "stopword_heavy",
+    "notes": "Regression case. Pre-BM25 this returned three chunks containing zero occurrences of exodus/teach/covenant, ranked purely on 135 occurrences of 'the'."
+  },
+  {
+    "id": "stop-sabbath-meaning",
+    "query": "what is the meaning of the sabbath rest",
+    "kind": "stopword_heavy",
+    "notes": "Same failure shape as stop-exodus-covenant: heavy stopword load around two content words."
+  }
+]

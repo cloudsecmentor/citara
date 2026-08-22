@@ -189,6 +189,13 @@ def test_configured_bema_connector_preserves_episode_metadata():
     assert episodes[0]["episode_title"] == "Trust the Story"
 
 
+def test_podcast_source_tree_metadata_uses_show_slug():
+    assert podcast_pipeline.podcast_source_tree_metadata("Meaningful Judaism") == {
+        "source_tree_slug": "meaningful-judaism",
+        "source_tree_type": "podcast",
+    }
+
+
 def test_load_config_or_url_resolves_named_source_from_config_file(tmp_path):
     config_path = tmp_path / "citara.sources.json"
     config_path.write_text(

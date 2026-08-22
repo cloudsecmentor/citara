@@ -2,6 +2,53 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+
+def _load_dotenv() -> None:
+    """Populate os.environ from a `.env` file, if one is present.
+
+    Settings below are read at import time, so this has to run first --
+    which is also why it is done here rather than by a caller.
+
+    Real environment variables always win: a `.env` only fills in what is
+    not already set, so `docker compose` and shell exports keep precedence.
+    Before this existed, `.env` was silently inert outside docker compose --
+    the file looked like configuration but did nothing.
+    """
+
+    # Tests set this so a developer's real `.env` can never leak into the
+    # suite. Without it, whether a test passes depends on whether the machine
+    # running it happens to have credentials on disk.
+    if os.getenv("CITARA_SKIP_DOTENV", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return
+
+    candidates = []
+    override = os.getenv("CITARA_ENV_FILE")
+    if override:
+        candidates.append(Path(override))
+    else:
+        candidates.append(Path.cwd() / ".env")
+        # Also check the repo root, so scripts run from a subdirectory work.
+        candidates.append(Path(__file__).resolve().parents[3] / ".env")
+
+    for path in candidates:
+        if not path.is_file():
+            continue
+        for raw in path.read_text().splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            if key.startswith("export "):
+                key = key[len("export ") :].strip()
+            value = value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, value)
+        return
+
+
+_load_dotenv()
 
 
 def _get_bool(name: str, default: bool) -> bool:

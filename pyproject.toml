@@ -31,6 +31,9 @@ dependencies = [
   "alembic>=1.13",
   "httpx>=0.27",
   "mcp>=1.10",
+  # Vector search scores the corpus as a single matrix-vector product.
+  # Previously only a transitive dependency (via pgvector).
+  "numpy>=1.26",
   "psycopg[binary]>=3.2",
   "pgvector>=0.3",
   "pymupdf>=1.28.0",

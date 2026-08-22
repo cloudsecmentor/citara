@@ -355,6 +355,23 @@ def existing_bema_sources_by_episode() -> dict[str, str]:
     return mapping
 
 
+def timestamp_metadata(transcript_provenance: str) -> dict[str, str]:
+    """Describe how playable citation offsets were obtained."""
+    if transcript_provenance == "published_transcript":
+        return {
+            "timestamp_provenance": "proportional_estimate",
+            "timestamp_precision": "approximate",
+            "citation_anchor": "chunk_start",
+        }
+    if transcript_provenance.startswith("generated_"):
+        return {
+            "timestamp_provenance": "asr_segment",
+            "timestamp_precision": "segment",
+            "citation_anchor": "chunk_start",
+        }
+    raise ValueError(f"unsupported transcript provenance: {transcript_provenance}")
+
+
 def import_published(
     episodes: list[dict[str, Any]], state_path: Path, artifact_dir: Path, api_url: str, limit: int | None = None
 ) -> list[dict[str, Any]]:
@@ -383,10 +400,15 @@ def import_published(
                 text_path.parent.mkdir(parents=True, exist_ok=True)
                 text_path.write_text(text)
                 segments = make_segments(text, episode.get("duration_seconds") or 0)
+                provenance = "published_transcript"
+                timing_metadata = timestamp_metadata(provenance)
+                for segment in segments:
+                    segment["metadata_json"] = {"transcript_provenance": provenance, **timing_metadata}
                 payload = {
                     "show_title": episode.get("show_title") or "The BEMA Podcast",
                     "episode_title": title,
                     "episode_url": episode.get("episode_url"),
+                    "metadata": {"transcript_provenance": provenance, **timing_metadata},
                     "segments": segments,
                 }
                 response = post_json(f"{api_url.rstrip('/')}/sources/transcript", payload)
@@ -463,10 +485,15 @@ def transcribe_missing(
             if not segments:
                 raise RuntimeError("no transcript segments generated")
             title = f"BEMA {episode['episode']}: {episode['episode_title']} (Generated Transcript)"
+            provenance = "generated_faster_whisper"
+            timing_metadata = timestamp_metadata(provenance)
+            for segment in segments:
+                segment["metadata_json"] = {"transcript_provenance": provenance, **timing_metadata}
             payload = {
                 "show_title": episode.get("show_title") or "The BEMA Podcast",
                 "episode_title": title,
                 "episode_url": episode.get("episode_url"),
+                "metadata": {"transcript_provenance": provenance, **timing_metadata},
                 "segments": segments,
             }
             response = post_json(f"{api_url.rstrip('/')}/sources/transcript", payload)

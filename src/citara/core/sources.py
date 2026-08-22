@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from citara.core.config import settings
 from citara.core.models import Chunk, Embedding, IngestionJob, Source, SourceEntity, TranscriptSegment
+from citara.core.retrieval import vector_cache
+from citara.core.retrieval.fts import delete_source_chunks
 
 
 def list_sources(session: Session, *, tenant_id: str = settings.default_tenant_id, limit: int = 50) -> list[Source]:
@@ -40,6 +42,9 @@ def set_source_preference(
     source.metadata_json = metadata
     session.commit()
     session.refresh(source)
+    # Weights are baked into the cached matrix, so a preference change has to
+    # drop it even though no embedding row moved.
+    vector_cache.invalidate(tenant_id)
     return source
 
 
@@ -50,6 +55,10 @@ def delete_source(session: Session, source_id: str, *, tenant_id: str = settings
 
     session.execute(delete(Embedding).where(Embedding.tenant_id == tenant_id, Embedding.source_id == source_id))
     session.execute(delete(SourceEntity).where(SourceEntity.tenant_id == tenant_id, SourceEntity.source_id == source_id))
+    # Must precede the chunk delete -- it resolves the rows to drop by
+    # subquerying `chunks`, which would be empty afterwards and leave the
+    # full-text index holding orphaned entries.
+    delete_source_chunks(session, source_id)
     session.execute(delete(Chunk).where(Chunk.tenant_id == tenant_id, Chunk.source_id == source_id))
     session.execute(
         delete(TranscriptSegment).where(
@@ -65,4 +74,5 @@ def delete_source(session: Session, source_id: str, *, tenant_id: str = settings
     )
     session.delete(source)
     session.commit()
+    vector_cache.invalidate(tenant_id)
     return True

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from citara.core.config import settings
 from citara.core.embeddings.providers import EmbeddingProvider, get_embedding_provider
 from citara.core.models import Chunk, Embedding
+from citara.core.retrieval import vector_cache
 
 
 def embed_chunks(
@@ -34,6 +35,9 @@ def embed_chunks(
     ]
     session.add_all(embeddings)
     session.flush()
+    # New vectors must be visible to the next search rather than waiting for
+    # the cache's version-check interval to elapse.
+    vector_cache.invalidate(tenant_id)
     return embeddings
 
 

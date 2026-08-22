@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import json
+from array import array
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    DDL,
+    JSON,
+    DateTime,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    event,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 
@@ -16,13 +29,43 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 class EmbeddingVector(TypeDecorator):
+    """Chunk embedding storage, packed per dialect.
+
+    Postgres uses pgvector. Everything else stores a packed float32 buffer
+    rather than a JSON array: at realistic dimensions, parsing tens of
+    thousands of JSON float arrays dominates query time, while
+    `np.frombuffer` over a BLOB is effectively free.
+
+    Rows written before the packed format are still JSON text, so reads
+    accept both. No migration is needed for the switch -- SQLite's TEXT
+    affinity stores a BLOB unchanged -- and the format converts naturally as
+    vectors are rewritten (see `scripts/reembed_corpus.py`).
+    """
+
     impl = JSON
     cache_ok = True
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(Vector())
-        return dialect.type_descriptor(JSON())
+        return dialect.type_descriptor(LargeBinary())
+
+    def process_bind_param(self, value, dialect):
+        if value is None or dialect.name == "postgresql":
+            return value
+        return array("f", (float(item) for item in value)).tobytes()
+
+    def process_result_value(self, value, dialect):
+        if value is None or dialect.name == "postgresql":
+            return value
+        if isinstance(value, memoryview | bytearray | bytes):
+            unpacked = array("f")
+            unpacked.frombytes(bytes(value))
+            return list(unpacked)
+        if isinstance(value, str):
+            # Legacy JSON row, written before the packed format.
+            return json.loads(value)
+        return value
 
 
 class Base(DeclarativeBase):
@@ -172,6 +215,31 @@ class Embedding(Base):
     dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
     vector: Mapped[list[float]] = mapped_column(EmbeddingVector(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# Full-text index over chunk text, maintained by `core/retrieval/fts.py`.
+#
+# It is declared here rather than there so that any `Base.metadata.create_all`
+# -- init_db(), and the in-memory engine the test fixtures build -- gets the
+# table. Registering the hook inside the retrieval package would only fire if
+# that package happened to be imported first.
+#
+# The indexed column holds `" ".join(tokenize(text))`, not the raw text, so the
+# index and the query agree on tokenization. That keeps the Unicode/CJK-bigram
+# handling in `chunking/simple.py` authoritative instead of silently deferring
+# to FTS5's own `unicode61` tokenizer.
+CHUNK_FTS_TABLE = "chunk_fts"
+
+_CREATE_CHUNK_FTS = DDL(
+    f"CREATE VIRTUAL TABLE IF NOT EXISTS {CHUNK_FTS_TABLE} USING fts5(chunk_id UNINDEXED, tokens, tokenize='unicode61')"
+)
+
+event.listen(Base.metadata, "after_create", _CREATE_CHUNK_FTS.execute_if(dialect="sqlite"))
+event.listen(
+    Base.metadata,
+    "before_drop",
+    DDL(f"DROP TABLE IF EXISTS {CHUNK_FTS_TABLE}").execute_if(dialect="sqlite"),
+)
 
 
 class IngestionJob(Base):

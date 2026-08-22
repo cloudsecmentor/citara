@@ -56,17 +56,32 @@ class DeterministicEmbeddingProvider:
 
 
 class OpenAIEmbeddingProvider:
-    def __init__(self, *, api_key: str, model: str, base_url: str = "https://api.openai.com/v1") -> None:
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        base_url: str = "https://api.openai.com/v1",
+        dimensions: int | None = None,
+    ) -> None:
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.dimensions = dimensions
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        payload: dict = {"model": self.model, "input": texts}
+        if self.dimensions:
+            # Matryoshka truncation. text-embedding-3-* are trained so a
+            # prefix of the vector remains useful, so asking for 512 instead
+            # of the native 1536 costs little quality and thirds the resident
+            # matrix that vector search keeps in memory.
+            payload["dimensions"] = self.dimensions
         with httpx.Client() as client:
             response = client.post(
                 f"{self.base_url}/embeddings",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"model": self.model, "input": texts},
+                json=payload,
                 timeout=60,
             )
         response.raise_for_status()
@@ -81,20 +96,27 @@ class AzureFoundryEmbeddingProvider:
         api_key: str,
         deployment: str,
         api_version: str = "2024-02-01",
+        dimensions: int | None = None,
     ) -> None:
         self.endpoint = endpoint.rstrip("/")
         self.api_key = api_key
         self.deployment = deployment
         self.api_version = api_version
         self.model = deployment
+        self.dimensions = dimensions
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         url = f"{self.endpoint}/openai/deployments/{self.deployment}/embeddings?api-version={self.api_version}"
+        payload: dict = {"input": texts}
+        if self.dimensions:
+            # Support depends on the deployed model and api-version; an older
+            # deployment simply returns its native width.
+            payload["dimensions"] = self.dimensions
         with httpx.Client() as client:
             response = client.post(
                 url,
                 headers={"api-key": self.api_key},
-                json={"input": texts},
+                json=payload,
                 timeout=60,
             )
         response.raise_for_status()
@@ -120,8 +142,40 @@ def _normalized_tokens(text: str) -> list[str]:
     return normalized
 
 
+# Defaults used when a real embedding backend is selected but the model /
+# dimension settings still hold their local-development placeholders. Without
+# this, `EMBEDDING_PROVIDER=openai` alone would request a model literally named
+# "deterministic-hash-v1" from the API, or silently ask for 8-dimensional
+# vectors -- both of which look like configuration bugs at the worst moment.
+DEFAULT_REMOTE_EMBEDDING_MODEL = "text-embedding-3-small"
+DEFAULT_REMOTE_EMBEDDING_DIMENSIONS = 512
+
+
+def _remote_model() -> str:
+    model = os.getenv("EMBEDDING_MODEL", settings.embedding_model)
+    return DEFAULT_REMOTE_EMBEDDING_MODEL if model == DeterministicEmbeddingProvider.model else model
+
+
+def _remote_dimensions() -> int | None:
+    """Explicit EMBEDDING_DIMENSIONS wins; otherwise fall back to the default.
+
+    `settings.embedding_dimensions` cannot be used directly here: it defaults
+    to 8 for the deterministic provider, and 8-dimensional OpenAI vectors
+    would be a silent quality catastrophe rather than an error.
+    """
+    raw = os.getenv("EMBEDDING_DIMENSIONS")
+    if not raw:
+        return DEFAULT_REMOTE_EMBEDDING_DIMENSIONS
+    value = int(raw)
+    return DEFAULT_REMOTE_EMBEDDING_DIMENSIONS if value <= 8 else value
+
+
 def get_embedding_provider() -> EmbeddingProvider:
     provider = os.getenv("EMBEDDING_PROVIDER", settings.embedding_provider)
+    # NOTE: "local" selects the DETERMINISTIC HASH provider -- a fast,
+    # offline, non-semantic stand-in for tests and local development, not a
+    # locally hosted model. `deterministic` is the clearer spelling; `local`
+    # is kept because existing configs and docker-compose use it.
     if provider in {"local", "deterministic", "test"}:
         return DeterministicEmbeddingProvider(settings.embedding_dimensions)
     if provider == "openai":
@@ -130,7 +184,8 @@ def get_embedding_provider() -> EmbeddingProvider:
             raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai")
         return OpenAIEmbeddingProvider(
             api_key=api_key,
-            model=os.getenv("EMBEDDING_MODEL", settings.embedding_model),
+            model=_remote_model(),
+            dimensions=_remote_dimensions(),
         )
     if provider in {"azure_foundry", "foundry", "azure_openai"}:
         api_key = os.getenv("AZURE_OPENAI_API_KEY") or settings.azure_openai_api_key
@@ -153,5 +208,6 @@ def get_embedding_provider() -> EmbeddingProvider:
             api_key=api_key,
             deployment=deployment,
             api_version=api_version,
+            dimensions=_remote_dimensions(),
         )
     raise ValueError(f"Unsupported embedding provider: {provider}")

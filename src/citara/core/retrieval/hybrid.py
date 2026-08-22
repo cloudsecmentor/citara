@@ -3,7 +3,8 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from citara.core.config import settings
-from citara.core.retrieval.keyword import SearchResult, search_knowledge
+from citara.core.retrieval.base import SearchResult
+from citara.core.retrieval.keyword import search_knowledge
 from citara.core.retrieval.vector import vector_search
 
 # Standard reciprocal-rank-fusion damping constant (Cormack et al.); keeps

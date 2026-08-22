@@ -6,6 +6,112 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+Rebuilds both halves of hybrid retrieval. The RRF fusion layer is unchanged — the inputs it was
+fusing were the problem. Measured on the 1,444-source / 58,471-chunk corpus.
+
+### Fixed
+
+- **Keyword ranking was decided by stopwords.** `search_knowledge` scored a chunk as the raw sum of
+  query-token occurrences, with no IDF and no length normalization. For
+  `what does the exodus teach about covenant`, the top three results contained *zero* occurrences
+  of `exodus`, `teach`, or `covenant`; the winner scored 121.5 on 135 occurrences of `the`.
+  Scoring is now BM25, so a term appearing everywhere carries almost no weight.
+- **`cosine_similarity` silently truncated mismatched vectors.** It used
+  `zip(left, right, strict=False)`, summing only the shorter vector's products while dividing by
+  the longer vector's magnitude — returning a plausible number that was not a cosine of anything.
+  An 8-dimension stored vector scored against a 512-dimension query produced silently wrong
+  rankings with no error, which is exactly the state a corpus is in partway through a re-embed.
+  It now raises on a length mismatch.
+- **`vector_search` did not filter by embedding model.** It scored a query against every stored
+  vector regardless of which model produced it. Retrieval now loads only vectors matching the
+  active provider's model, so a half-migrated corpus cannot be scored against a foreign space.
+
+### Added
+
+- `scripts/eval_retrieval.py` and `tests/eval/queries.json`: a 32-query evaluation harness
+  reporting Recall@k, MRR, nDCG@k, and latency per mode. Ground truth comes from title-anchored
+  known-item labels (free) and pooled per-chunk judgments (`--judge`). Retrieval changes are now
+  measurable rather than asserted.
+- `chunk_fts`, a SQLite FTS5 index over chunk text, with native `bm25()` ranking
+  (migration `20260816_0005`). Indexed content is `" ".join(tokenize(text))` rather than raw text,
+  so the index and the query agree on tokenization and the existing Unicode/CJK-bigram handling
+  stays authoritative instead of deferring to FTS5's `unicode61`.
+- `scripts/backfill_fts.py` to populate the index on an existing corpus, with `--check` for
+  index/corpus drift.
+- `core/retrieval/base.py`, `bm25.py`, `fts.py`, and `vector_cache.py`. Filter construction, which
+  had been duplicated across three backends, now lives in one place.
+- `dimensions` support on the OpenAI and Azure embedding providers (Matryoshka truncation).
+
+### Changed
+
+- **`.env` is now loaded automatically**, reversing the `0.4.1` position that it is consumed only
+  by `docker compose`. Real environment variables still win — the file only fills in what is
+  unset — and `CITARA_SKIP_DOTENV=1` disables it (the test suite sets this, so a developer's local
+  credentials can never change what the suite exercises). The previous behavior meant a file that
+  looked like configuration silently did nothing.
+- Keyword search runs against the FTS index on SQLite; Postgres and any SQLite build without FTS5
+  fall back to the BM25 scan in `keyword.scan_search`. Both rank by BM25, so they stay comparable.
+- Vector search scores the corpus as one matrix-vector product over a cached, pre-normalized
+  float32 matrix instead of a per-row Python cosine loop.
+- Embeddings are stored as a packed float32 buffer rather than a JSON array on non-Postgres
+  backends. Reads still accept legacy JSON rows, so no migration is required, and the format
+  converts as vectors are rewritten. Round trips are now float32-accurate (~1e-7) rather than
+  bit-exact.
+- `EMBEDDING_PROVIDER=openai` no longer inherits the local placeholders. `EMBEDDING_MODEL`
+  defaulting to `deterministic-hash-v1` would have been sent to the API as a model name, and
+  `EMBEDDING_DIMENSIONS` defaulting to `8` would have silently requested 8-dimension vectors from a
+  real model. Both now fall back to `text-embedding-3-small` at 512 dimensions.
+- `numpy` is now a declared dependency; it was previously only transitive via `pgvector`.
+
+### Performance
+
+Measured by `scripts/eval_retrieval.py` over 32 queries at k=10 against the 58,471-chunk corpus.
+
+| mode | recall@10 | nDCG@10 | p50 latency |
+| --- | --- | --- | --- |
+| keyword | 0.373 → **0.741** | 0.232 → **0.581** | 12,751 ms → **1,989 ms** |
+| vector | 0.148 → **0.800** | 0.075 → **0.660** | 6,000 ms → **181 ms** |
+| hybrid | 0.222 → **0.831** | 0.130 → **0.682** | 18,782 ms → **981 ms** |
+
+Hybrid gains 3.7× recall and 5.2× nDCG at 19× lower latency. More importantly it now behaves like
+hybrid search is supposed to: at baseline it scored *below* keyword alone on every quality metric,
+because RRF was fusing a usable keyword ranking with a vector ranking that carried no signal. It
+now beats both of its inputs.
+
+Vector-index cold start is 6.0 s for 58,471 × 512 (120 MB resident); the warm path is a dictionary
+lookup. Re-embedding the full corpus took ~6 minutes and cost roughly $0.35.
+
+### Fixed (citations)
+
+- **Text in Us timestamp links did not seek.** All 168 sources for that show carried a
+  `podcasters.spotify.com` canonical URL (now redirecting to `creators.spotify.com`), and that page
+  ignores the `?t=` parameter that `_timestamp_url()` appends. Every citation deep link for the
+  show was well-formed but landed at the start of the episode. They now point at
+  `open.spotify.com/episode/{id}`, which honors `t=`.
+
+  The two URL forms use unrelated id spaces (Anchor's trailing `-e1du4b3` is base36; Spotify
+  episode ids are 22-character base62) and the RSS feed carries no Spotify id, so the mapping had
+  to be looked up rather than derived. `scripts/fix_spotify_episode_urls.py` joins
+  `episode_guid → RSS title → Spotify episode title → episode id` and rewrites `canonical_url`,
+  preserving the original as `metadata_json.anchor_url` alongside `spotify_episode_id`. All 168
+  matched with no unresolved rows; three mappings were spot-checked against Spotify's public
+  oEmbed endpoint.
+
+  The connector still stores the feed's `<link>`, since resolving ids needs the Spotify Web API and
+  ingestion should not require credentials to produce correct links. Re-run the script after each
+  import — it is idempotent and only touches stale URLs.
+
+### Data & migrations
+
+- Create the index, then populate it once with `uv run python scripts/backfill_fts.py --yes`.
+  Ingestion maintains it from then on, and `--check` reports index/corpus drift.
+- Creating the index: `alembic upgrade head` on an Alembic-tracked database. A database built by
+  `init_db()` has an empty `alembic_version` table and is *not* Alembic-tracked — `upgrade head`
+  would try to recreate existing tables and fail. `backfill_fts.py` calls `init_db()` itself, so on
+  those databases it both creates and populates the index in one step, and no Alembic run is
+  needed.
+- No embedding migration is required to adopt the packed vector format.
+
 ## [0.4.1] - 2026-08-07
 
 Completes the corpus-location fix that `0.4.0` only half-shipped.

@@ -1,67 +1,91 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from citara.core.chunking.simple import tokenize
 from citara.core.config import settings
-from citara.core.entities import resolve_entity_ids
-from citara.core.models import Chunk, Source, SourceEntity
+from citara.core.models import Chunk, Source
+from citara.core.retrieval import bm25, fts
+from citara.core.retrieval.base import (
+    TIMESTAMPED_SOURCE_TYPES,
+    SearchResult,
+    _citation_label,
+    _format_timestamp,
+    _source_weight,
+    _timestamp_url,
+    apply_source_filters,
+    result_from,
+)
 
-# Source types whose chunks carry playable offsets, so citations get a deep link.
-TIMESTAMPED_SOURCE_TYPES = frozenset({"podcast_episode", "youtube_video"})
-
-
-@dataclass(frozen=True)
-class SearchResult:
-    chunk_id: str
-    source_id: str
-    source_title: str
-    source_type: str
-    text: str
-    score: float
-    citation_label: str
-    canonical_url: str | None = None
-    timestamp_url: str | None = None
-    page_number: int | None = None
-    start_ms: int | None = None
-    end_ms: int | None = None
-
-
-def _citation_label(source: Source, chunk: Chunk) -> str:
-    if source.source_type in TIMESTAMPED_SOURCE_TYPES:
-        metadata = source.metadata_json or {}
-        container_title = metadata.get("show_title") or metadata.get("channel") or source.title
-        timestamp = _format_timestamp(chunk.start_ms or 0)
-        return f"{container_title}, {source.title}, {timestamp}"
-    return f"{source.title}, chunk {chunk.chunk_index}"
+# Re-exported for backward compatibility: `core/summary.py` and several tests
+# import these from this module, which was their home before the retrieval
+# backends were split apart.
+__all__ = [
+    "TIMESTAMPED_SOURCE_TYPES",
+    "SearchResult",
+    "_citation_label",
+    "_format_timestamp",
+    "_source_weight",
+    "_timestamp_url",
+    "scan_search",
+    "search_knowledge",
+]
 
 
-def _timestamp_url(source: Source, chunk: Chunk) -> str | None:
-    if source.source_type not in TIMESTAMPED_SOURCE_TYPES or not source.canonical_url or chunk.start_ms is None:
-        return None
-    separator = "&" if "?" in source.canonical_url else "?"
-    return f"{source.canonical_url}{separator}t={chunk.start_ms // 1000}"
+def scan_search(
+    session: Session,
+    *,
+    query_tokens: list[str],
+    limit: int,
+    tenant_id: str,
+    entity_slugs: list[str] | None = None,
+    source_tree_slug: str | None = None,
+    source_language: str | None = None,
+    include_und: bool = False,
+) -> list[SearchResult]:
+    """BM25 over a full scan. The portable fallback when FTS5 is unavailable.
 
+    Used on Postgres and on any SQLite build without FTS5. It reads every
+    matching chunk and tokenizes it per query, so it is O(corpus) -- the
+    indexed path in `fts.py` is strongly preferred and is what SQLite uses.
+    Ranking is BM25 either way, so the two paths stay comparable.
+    """
 
-def _source_weight(source: Source) -> float:
-    value = (source.metadata_json or {}).get("retrieval_weight", 1.0)
-    try:
-        weight = float(value)
-    except (TypeError, ValueError):
-        return 1.0
-    return weight if weight > 0 else 1.0
+    if not query_tokens:
+        return []
 
+    statement = select(Chunk, Source).join(Source, Chunk.source_id == Source.id)
+    statement, matchable = apply_source_filters(
+        statement,
+        session=session,
+        tenant_id=tenant_id,
+        entity_slugs=entity_slugs,
+        source_tree_slug=source_tree_slug,
+        source_language=source_language,
+        include_und=include_und,
+    )
+    if not matchable:
+        return []
 
-def _format_timestamp(ms: int) -> str:
-    total = ms // 1000
-    hours, remainder = divmod(total, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if hours:
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-    return f"{minutes:02d}:{seconds:02d}"
+    rows = session.execute(statement).all()
+    tokenized = [tokenize(chunk.text) for chunk, _ in rows]
+    doc_freqs, total_docs, avg_len = bm25.corpus_stats(tokenized, query_tokens)
+
+    scored: list[tuple[float, Source, Chunk]] = []
+    for (chunk, source), doc_tokens in zip(rows, tokenized, strict=True):
+        score = bm25.score_document(
+            query_tokens,
+            doc_tokens,
+            doc_freqs=doc_freqs,
+            total_docs=total_docs,
+            avg_doc_len=avg_len,
+        )
+        if score > 0:
+            scored.append((score * _source_weight(source), source, chunk))
+
+    scored.sort(key=lambda item: (-item[0], item[1].title, item[2].chunk_index))
+    return [result_from(source, chunk, score) for score, source, chunk in scored[:limit]]
 
 
 def search_knowledge(
@@ -75,53 +99,20 @@ def search_knowledge(
     source_language: str | None = None,
     include_und: bool = False,
 ) -> list[SearchResult]:
+    """Rank chunks by BM25, using the FTS5 index when one is available."""
+
     query_tokens = tokenize(query)
     if not query_tokens:
         return []
 
-    statement = (
-        select(Chunk, Source).join(Source, Chunk.source_id == Source.id).where(Chunk.tenant_id == tenant_id, Source.tenant_id == tenant_id)
+    backend = fts.fts_search if fts.fts_available(session) else scan_search
+    return backend(
+        session,
+        query_tokens=query_tokens,
+        limit=limit,
+        tenant_id=tenant_id,
+        entity_slugs=entity_slugs,
+        source_tree_slug=source_tree_slug,
+        source_language=source_language,
+        include_und=include_und,
     )
-    if source_language:
-        if include_und:
-            statement = statement.where(or_(Source.language == source_language, Source.language.is_(None)))
-        else:
-            statement = statement.where(Source.language == source_language)
-    if source_tree_slug:
-        statement = statement.where(Source.metadata_json["source_tree_slug"].as_string() == source_tree_slug)
-    if entity_slugs:
-        entity_ids = resolve_entity_ids(session, entity_slugs=entity_slugs, tenant_id=tenant_id)
-        if not entity_ids:
-            return []
-        source_ids = select(SourceEntity.source_id).where(
-            SourceEntity.tenant_id == tenant_id,
-            SourceEntity.entity_id.in_(entity_ids),
-        )
-        statement = statement.where(Chunk.source_id.in_(source_ids))
-
-    rows = session.execute(statement).all()
-
-    scored: list[tuple[float, Source, Chunk]] = []
-    for chunk, source in rows:
-        chunk_tokens = tokenize(chunk.text)
-        score = sum(chunk_tokens.count(token) for token in query_tokens)
-        if score:
-            scored.append((score * _source_weight(source), source, chunk))
-
-    scored.sort(key=lambda item: (-item[0], item[1].title, item[2].chunk_index))
-    return [
-        SearchResult(
-            chunk_id=chunk.id,
-            source_id=source.id,
-            source_title=source.title,
-            source_type=source.source_type,
-            text=chunk.text,
-            score=float(score),
-            citation_label=_citation_label(source, chunk),
-            canonical_url=source.canonical_url,
-            timestamp_url=_timestamp_url(source, chunk),
-            start_ms=chunk.start_ms,
-            end_ms=chunk.end_ms,
-        )
-        for score, source, chunk in scored[:limit]
-    ]

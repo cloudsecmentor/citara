@@ -109,6 +109,21 @@ def test_bema_pipeline_parses_rss_and_transcript_versions():
     ]
 
 
+def test_bema_timestamp_metadata_distinguishes_estimated_from_audio_derived():
+    bema = load_connector("bema")
+
+    assert bema.timestamp_metadata("published_transcript") == {
+        "timestamp_provenance": "proportional_estimate",
+        "timestamp_precision": "approximate",
+        "citation_anchor": "chunk_start",
+    }
+    assert bema.timestamp_metadata("generated_openai_whisper") == {
+        "timestamp_provenance": "asr_segment",
+        "timestamp_precision": "segment",
+        "citation_anchor": "chunk_start",
+    }
+
+
 def test_textinus_pipeline_parses_anchor_feed_as_audio_only():
     textinus = load_connector("textinus")
 

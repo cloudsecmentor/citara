@@ -162,6 +162,7 @@ def test_import_is_idempotent_and_propagates_metadata_entities_artifacts_and_sta
         source.author = None
         source.provider = None
         source.external_id = None
+        source.canonical_url = "https://example.test/stale-canonical-url"
         source.metadata_json = {key: value for key, value in source.metadata_json.items() if key != "publisher"}
         for chunk in session.query(Chunk).filter_by(source_id=source.id).all():
             chunk.metadata_json = {key: value for key, value in chunk.metadata_json.items() if key != "publisher"}
@@ -241,6 +242,34 @@ def test_import_is_idempotent_and_propagates_metadata_entities_artifacts_and_sta
     assert state["episodes"][item["guid"]]["unrelated"] == "keep"
     assert state["episodes"][item["guid"]]["generated_import_status"] == "skipped_existing"
     assert state["episodes"][item["guid"]]["generated_source_id"] == source.id
+
+
+def test_same_title_with_distinct_guids_imports_as_distinct_sources(tmp_path: Path) -> None:
+    root, manifest_path, _state_path, first = setup_roots(tmp_path)
+    manifest = json.loads(manifest_path.read_text())
+    second = {
+        **first,
+        "queue_number": 2,
+        "episode_label": "S4E2",
+        "guid": "youtube-second-video",
+        "audio_url": "https://www.youtube.com/watch?v=second-video",
+        "canonical_url": "https://www.youtube.com/watch?v=second-video",
+        "artifact_stem": "q002-yt-second-video",
+    }
+    manifest["episodes"].append(second)
+    write_json(manifest_path, manifest)
+    make_triplet(manifest_path.parent, second)
+    importer.configure_citara_root(root)
+    importer.init_db()
+
+    results = importer.run_import(citara_root=root, manifest_path=manifest_path)
+
+    assert [row["status"] for row in results] == ["imported", "imported"]
+    with importer.SessionLocal() as session:
+        sources = session.execute(select(Source)).scalars().all()
+        assert len(sources) == 2
+        assert {source.external_id for source in sources} == {first["guid"], second["guid"]}
+        assert {source.canonical_url for source in sources} == {first["canonical_url"], second["canonical_url"]}
 
 
 def test_incomplete_triplet_is_the_only_kind_skipped_without_import(tmp_path: Path) -> None:

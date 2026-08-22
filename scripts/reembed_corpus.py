@@ -84,10 +84,11 @@ class ReembedStats:
             lines.extend(
                 [
                     "",
-                    f"WARNING: {self.other_model_rows} embedding row(s) belong to a different model.",
-                    "         `vector_search` does not filter by embedding_model, so leaving them in",
-                    "         place lets one chunk match several times and skews ranking.",
-                    "         Re-run with --prune-other-models to delete them.",
+                    f"NOTE: {self.other_model_rows} embedding row(s) belong to a different model.",
+                    "      Retrieval ignores them -- `vector_search` loads only the active model's",
+                    "      vectors -- so they are safe to leave in place, and keeping them lets you",
+                    "      switch back without re-embedding. They do occupy space:",
+                    "      re-run with --prune-other-models to delete them.",
                 ]
             )
         if self.pruned:
@@ -136,6 +137,7 @@ def reembed(
     apply: bool,
     source_id: str | None = None,
     prune_other_models: bool = False,
+    progress: bool = False,
 ) -> ReembedStats:
     stats = ReembedStats()
 
@@ -192,7 +194,20 @@ def reembed(
                     stats.pruned += 1
 
         if apply:
-            session.flush()
+            # Commit per batch, not once at the end. A full-corpus re-embed is
+            # hundreds of network calls over many minutes; a single trailing
+            # commit means one transient failure discards all of it.
+            #
+            # This is only safe because `vector_search` filters by the active
+            # embedding model. A partially committed run leaves a corpus where
+            # some chunks carry the new model and some the old, and retrieval
+            # searches only the new ones -- a smaller index, never a wrong one.
+            # Before that filter existed, this would have produced silently
+            # corrupt rankings.
+            session.commit()
+
+        if progress and stats.chunks_seen % (batch_size * 10) < batch_size:
+            print(f"  {stats.chunks_seen:,} chunks processed", flush=True)
 
     return stats
 
@@ -207,8 +222,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--prune-other-models",
         action="store_true",
-        help="Delete embedding rows belonging to a different model (vector_search does not filter by model)",
+        help="Delete embedding rows belonging to a different model. Retrieval already ignores them; this reclaims the space.",
     )
+    parser.add_argument("--progress", action="store_true", help="Print progress while running")
     return parser
 
 
@@ -231,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
             apply=apply,
             source_id=args.source_id,
             prune_other_models=args.prune_other_models,
+            progress=args.progress,
         )
         if apply:
             session.commit()

@@ -12,6 +12,12 @@ if _TEST_DB.exists():
     _TEST_DB.unlink()
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB}"
 
+# Keep the suite hermetic. `config.py` loads a `.env` at import time, and a
+# developer machine with real credentials on disk would otherwise change what
+# the tests exercise -- e.g. a live OPENAI_API_KEY silently satisfying a test
+# that asserts the missing-key error path.
+os.environ["CITARA_SKIP_DOTENV"] = "1"
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 from sqlalchemy import select
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -64,7 +65,10 @@ def test_apply_rewrites_stale_vectors_in_place(db_session):
     chunk = db_session.get(Chunk, chunk_id)
     assert chunk is not None
     expected = provider.embed_texts([chunk.text])[0]
-    assert embedding.vector == [float(value) for value in expected]
+    # Vectors are stored as packed float32, so a round trip is accurate to
+    # ~1e-7 rather than bit-exact. That is far tighter than the 0.999 cosine
+    # drift threshold reembed uses, so it never causes spurious rewrites.
+    assert embedding.vector == pytest.approx([float(value) for value in expected], abs=1e-6)
 
     # In place: same row, same chunk, no re-ingestion.
     assert embedding.id == embedding_id

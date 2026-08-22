@@ -112,6 +112,10 @@ def create_mcp_server() -> FastMCP:
                         "citation_label": result.citation_label,
                         "source_url": result.canonical_url,
                         "timestamp_url": result.timestamp_url,
+                        "transcript_provenance": result.transcript_provenance,
+                        "timestamp_provenance": result.timestamp_provenance,
+                        "timestamp_precision": result.timestamp_precision,
+                        "citation_anchor": result.citation_anchor,
                         "score": result.score,
                     }
                     for result in results

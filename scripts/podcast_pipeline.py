@@ -73,6 +73,13 @@ def slugify(value: str, *, max_len: int = 80) -> str:
     return value[:max_len].strip("-") or "podcast"
 
 
+def podcast_source_tree_metadata(show_title: str) -> dict[str, str]:
+    return {
+        "source_tree_slug": slugify(show_title),
+        "source_tree_type": "podcast",
+    }
+
+
 def paths_for_slug(slug_or_title: str, *, base_dir: Path = Path(".")) -> dict[str, Path]:
     slug = slugify(slug_or_title)
     if base_dir == Path("."):
@@ -575,6 +582,7 @@ def import_published(
             annotate_source_metadata(
                 source_id,
                 {
+                    **podcast_source_tree_metadata(state["show_title"]),
                     "show_title": state["show_title"],
                     "episode_guid": episode.get("guid"),
                     "episode_duration_seconds": episode.get("duration_seconds"),
@@ -661,6 +669,7 @@ def transcribe_missing(
             annotate_source_metadata(
                 source_id,
                 {
+                    **podcast_source_tree_metadata(state["show_title"]),
                     "show_title": state["show_title"],
                     "episode_guid": episode.get("guid"),
                     "episode_duration_seconds": episode.get("duration_seconds"),

@@ -405,7 +405,15 @@ def source_exists(item: dict[str, Any], title: str) -> str | None:
                 and metadata.get("preference_label") == "generated"
             ):
                 return source.id
-        return session.execute(select(Source.id).where(Source.title == title)).scalar_one_or_none()
+        for source in session.execute(select(Source).where(Source.title == title)).scalars():
+            metadata = source.metadata_json or {}
+            known_guid = metadata.get("episode_guid") or metadata.get("guid") or source.external_id
+            if known_guid and str(known_guid) != item["guid"]:
+                continue
+            if source.canonical_url and source.canonical_url != item["canonical_url"]:
+                continue
+            return source.id
+        return None
 
 
 def import_payload(*, title: str, canonical_url: str, segments: list[dict[str, Any]], metadata: dict[str, Any]) -> str:
@@ -432,7 +440,7 @@ def import_payload(*, title: str, canonical_url: str, segments: list[dict[str, A
         return source.id
 
 
-def reconcile_existing_source(source_id: str, metadata: dict[str, Any]) -> None:
+def reconcile_existing_source(source_id: str, metadata: dict[str, Any], canonical_url: str) -> None:
     """Refresh importer-managed identity/metadata without replacing existing content."""
     with SessionLocal() as session:
         source = session.get(Source, source_id)
@@ -440,6 +448,7 @@ def reconcile_existing_source(source_id: str, metadata: dict[str, Any]) -> None:
             raise RuntimeError(f"existing source disappeared: {source_id}")
         source.author = PUBLISHER
         source.provider = PROVIDER
+        source.canonical_url = canonical_url
         source.external_id = str(metadata["episode_guid"])
         source.language = "en"
         source.metadata_json = {**(source.metadata_json or {}), **metadata}
@@ -557,7 +566,7 @@ def run_import(*, citara_root: Path, manifest_path: Path) -> list[dict[str, Any]
         segments = segments_from_candidate(candidate)
         write_item_artifacts(item_dir, item=item, title=title, metadata=metadata, segments=segments)
         if existing:
-            reconcile_existing_source(existing, metadata)
+            reconcile_existing_source(existing, metadata, item["canonical_url"])
             result = {
                 "queue_number": item["queue_number"],
                 "guid": item["guid"],
