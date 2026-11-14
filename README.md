@@ -25,7 +25,9 @@ default embedding provider makes no network calls at all.
 ## Table of contents
 
 - [Why Citara](#why-citara)
-- [Quick start](#quick-start)
+- [Install with your AI agent](#install-with-your-ai-agent)
+- [Share a corpus ZIP](#share-a-corpus-zip)
+- [Quick start (manual)](#quick-start)
 - [Connect an AI agent (MCP)](#connect-an-ai-agent-mcp)
 - [HTTP API](#http-api)
 - [Ingesting content](#ingesting-content)
@@ -64,8 +66,122 @@ around the opposite assumption: **the citation is the product.**
 | Language | Unicode-aware tokenization, dependency-free language detection, cross-language query translation |
 | Interfaces | MCP stdio server, FastAPI HTTP API, Docker Compose runtime |
 
+## Install with your AI agent
+
+**Recommended: copy this message into your agent.** No corpus download is required to start.
+
+```text
+Install the Citara skill from
+https://github.com/cloudsecmentor/citara/tree/main/skills/citara
+Copy the complete skill directory, including its references, using your
+normal skill installer. Follow its setup instructions: clone the Citara
+runtime if needed, create a new local data directory, connect it to this
+agent over MCP, and verify a real citation-backed keyword query.
+Ask before replacing any existing skill, checkout, data, or MCP configuration.
+```
+
+The portable [Citara skill](skills/citara/SKILL.md) covers both setup and everyday retrieval.
+It installs **instructions into your agent**, then installs the **runtime separately from this
+repository**. It does not include anyone else's corpus, machine configuration, or credentials.
+Your agent needs execution/file access and MCP support; persistent skill installation also requires
+skill support. It should report any missing capabilities rather than pretend setup succeeded.
+
+For Hermes, you can also install the skill directly:
+
+```bash
+hermes skills install cloudsecmentor/citara/skills/citara
+```
+
+Then ask: **“Use the Citara skill to set up Citara and verify it.”** Other skill-capable agents can
+copy the complete `skills/citara/` directory to their documented skill location. Use the active
+profile's directory, preserve existing installations, and review any installer security warnings.
+The skill's [setup reference](skills/citara/references/setup.md) documents the complete procedure.
+A fresh conversation or agent restart may be needed to discover the skill or MCP tools.
+
+**No API key is required for keyword search.** The default local embedding provider is deterministic
+hashing, useful for offline tests—not a semantic language model. Begin with keyword retrieval;
+configure matching external embeddings only if you want them. Citara's code license covers personal
+and noncommercial use; content redistribution rights are separate.
+
+## Share a corpus ZIP
+
+Share the **skill link plus a corpus bundle**, not your checkout, `.env`, or live data directory.
+The recipient installs their own runtime and works on an independent local copy. No access to your
+machine or API keys is required for keyword queries.
+
+### Sender: export a consistent snapshot
+
+With the skill installed, you can ask your agent:
+
+```text
+Use the Citara skill to export this corpus as a shareable ZIP. Confirm which
+local corpus I mean, preserve its embedding and query-identity settings,
+and validate the exported bundle. Do not include raw artifacts unless I
+request them. Remind me that the database contains the corpus text and
+that I need redistribution rights before sending it.
+```
+
+For manual export, run from the Citara checkout. Replace these example paths and embedding settings with the corpus's
+actual configuration; the helper requires the embedding settings explicitly rather than guessing.
+
+```bash
+uv run python scripts/citara_bundle.py export \
+  --data-root /absolute/path/to/citara-data \
+  --output /absolute/path/to/share/citara-data.zip \
+  --embedding-provider local \
+  --embedding-model deterministic-hash-v1 \
+  --embedding-dimensions 8
+```
+
+The helper uses SQLite's online backup API, checks database integrity, and writes a manifest with
+Citara version/schema, source/chunk counts, embedding settings, and payload sizes/SHA-256 checksums.
+It never overwrites an existing ZIP. The default bundle contains only `citara.db` and `manifest.json`;
+the database already includes source text, chunks, embeddings, and citation metadata.
+
+- Add `--include-artifacts` if the recipient also needs `source-artifacts/` and `object-store/`.
+  Review those files first and pause artifact writers during export: only the DB snapshot is
+  transactionally consistent.
+- Use `--tenant-id` and `--user-id` for nondefault query identities. These select the recipient's
+  runtime identity; **they do not filter or redact the exported database**.
+- Environment files, credentials, import state, logs, and backups are not included by default.
+  The DB and optional artifacts can themselves contain private information: review the content.
+- Share only content you are authorized to redistribute. The ZIP is **not encrypted**. Send it
+  through a trusted private channel when needed; checksums detect corruption, not sender identity.
+- This workflow supports **SQLite corpora**, not Postgres dumps. The entire DB is exported, not a
+  selected-source subset. There is no automatic merge, synchronization, migration, or re-embedding.
+
+### Recipient: attach the ZIP and paste this
+
+```text
+Install the Citara skill from
+https://github.com/cloudsecmentor/citara/tree/main/skills/citara
+Follow its setup instructions and import the attached Citara corpus ZIP
+into a new local data directory. Preserve my existing data and MCP servers.
+Use keyword retrieval without requiring the sender's API credentials.
+Verify the imported corpus counts and retrieve an existing passage with
+its source ID and citation. Tell me if an agent restart is still needed.
+```
+
+For manual inspection/import, from your own Citara checkout:
+
+```bash
+uv run python scripts/citara_bundle.py inspect /path/to/citara-data.zip
+uv run python scripts/citara_bundle.py import /path/to/citara-data.zip \
+  --data-root /absolute/path/to/new-citara-data
+```
+
+Import validates the archive layout, declared payload sizes/checksums, database integrity/counts,
+and an exact match with the runtime's Citara version and schema revision before publishing a **new**
+data directory. Existing targets are refused.
+It generates `corpus.json` and a non-secret `citara.env` with your destination's absolute paths and
+the corpus's embedding/identity settings. Use that file when launching MCP; do not source any
+sender-supplied scripts or environment files. Incompatible versions/schemas must be resolved
+explicitly—import does not silently migrate your corpus. For a portable connection command and
+client configuration, follow the [setup reference](skills/citara/references/setup.md).
+
 ## Quick start
 
+Manual/developer alternative to the agent-guided installation above.
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
@@ -103,7 +219,7 @@ curl -X POST http://127.0.0.1:8000/sources/text \
   -H 'content-type: application/json' \
   -d '{"title":"Example note","text":"Cats are excellent local-first test subjects."}'
 
-curl "http://127.0.0.1:8000/search?q=feline&mode=hybrid"
+curl "http://127.0.0.1:8000/search?q=Cats&mode=hybrid"
 ```
 
 Prefer containers? `docker compose up -d postgres api` runs migrations and starts the API on the
@@ -161,15 +277,15 @@ curl -X POST http://127.0.0.1:8000/sources/text \
 Search in any of the three retrieval modes:
 
 ```bash
-curl "http://127.0.0.1:8000/search?q=feline&mode=keyword"
-curl "http://127.0.0.1:8000/search?q=feline&mode=vector"
-curl "http://127.0.0.1:8000/search?q=feline&mode=hybrid"
+curl "http://127.0.0.1:8000/search?q=Cats&mode=keyword"
+curl "http://127.0.0.1:8000/search?q=Cats&mode=vector"
+curl "http://127.0.0.1:8000/search?q=Cats&mode=hybrid"
 ```
 
 Retrieve a context pack:
 
 ```bash
-curl "http://127.0.0.1:8000/context-pack?q=feline&mode=hybrid&limit=5"
+curl "http://127.0.0.1:8000/context-pack?q=Cats&mode=hybrid&limit=5"
 ```
 
 Ingestion endpoints record inline job status rows:
