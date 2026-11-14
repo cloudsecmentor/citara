@@ -9,19 +9,20 @@ manifest, never replaces sources, and binds SQLite directly to ``--citara-root/c
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
-import sqlite3
 import sys
-from datetime import UTC, datetime
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NamedTuple
 
 from sqlalchemy import create_engine, select
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import URL, Engine
 from sqlalchemy.orm import sessionmaker
 
+from citara.core.backups import backup_database
 from citara.core.entities import attach_source_entities
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.models import Base, Chunk, Source, TranscriptSegment
@@ -40,6 +41,8 @@ ITEM_TYPE = "podcast_episode"
 FEED_URL = "https://rss.buzzsprout.com/2113502.rss"
 APPLE_PODCAST_ID = "1667348746"
 PUBLISHER = "Aleph Beta"
+AUTHOR = PUBLISHER
+PUBLISHER_SLUG = "aleph-beta"
 PROVIDER = "buzzsprout"
 ACRONYM: str | None = "BLNO"
 ALIASES = ["BLNO"]
@@ -109,10 +112,10 @@ def configure_citara_root(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     if _engine is not None:
         _engine.dispose()
-    database_url = f"sqlite:///{root / 'citara.db'}"
+    database_url = URL.create("sqlite", database=str(root / "citara.db"))
     # Keep settings imported later by ingestion helpers consistent, but never use
     # the ambient value to choose this importer's engine.
-    os.environ["DATABASE_URL"] = database_url
+    os.environ["DATABASE_URL"] = database_url.render_as_string(hide_password=False)
     os.environ["SOURCE_ARTIFACT_ROOT"] = str(root / "source-artifacts")
     os.environ["SOURCE_STATE_ROOT"] = str(root / "import-state")
     os.environ["OBJECT_STORE_PATH"] = str(root / "object-store")
@@ -157,6 +160,18 @@ def write_text_atomic(path: Path, value: str) -> None:
         temporary.unlink(missing_ok=True)
 
 
+@contextmanager
+def import_lock(root: Path):
+    lock_path = root / ".remote-artifact-import.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def load_manifest(path: Path) -> dict[str, Any]:
     try:
         manifest = load_json(path)
@@ -198,7 +213,7 @@ def load_manifest(path: Path) -> dict[str, Any]:
 def configure_corpus(manifest: dict[str, Any]) -> None:
     """Apply optional corpus metadata while retaining BLNO-compatible defaults."""
     global CORPUS_SLUG, SHOW_TITLE, SOURCE_TREE_TYPE, ITEM_TYPE, FEED_URL, APPLE_PODCAST_ID
-    global PUBLISHER, PROVIDER, ACRONYM, ALIASES, TAGS, ALEPH_BETA_ENTITIES
+    global PUBLISHER, AUTHOR, PUBLISHER_SLUG, PROVIDER, ACRONYM, ALIASES, TAGS, ALEPH_BETA_ENTITIES
 
     CORPUS_SLUG = str(manifest["corpus_slug"])
     legacy_blno = CORPUS_SLUG == "a-book-like-no-other"
@@ -208,6 +223,10 @@ def configure_corpus(manifest: dict[str, Any]) -> None:
     FEED_URL = str(manifest.get("feed_url") or ("https://rss.buzzsprout.com/2113502.rss" if legacy_blno else ""))
     APPLE_PODCAST_ID = str(manifest.get("apple_podcast_id") or ("1667348746" if legacy_blno else ""))
     PUBLISHER = str(manifest.get("publisher") or ("Aleph Beta" if legacy_blno else ""))
+    AUTHOR = str(manifest.get("author") or PUBLISHER)
+    PUBLISHER_SLUG = str(
+        manifest.get("publisher_slug") or ("aleph-beta" if legacy_blno else re.sub(r"[^a-z0-9]+", "-", PUBLISHER.lower()).strip("-"))
+    )
     PROVIDER = str(manifest.get("provider") or ("buzzsprout" if legacy_blno else ""))
     acronym = manifest.get("acronym", "BLNO" if legacy_blno else None)
     ACRONYM = str(acronym) if acronym else None
@@ -360,7 +379,7 @@ def generated_metadata(item: dict[str, Any], stats: dict[str, Any], item_dir: Pa
         "series_title": SHOW_TITLE,
         "aliases": list(ALIASES),
         "publisher": PUBLISHER,
-        "publisher_slug": "aleph-beta",
+        "publisher_slug": PUBLISHER_SLUG,
         "source_item_id": stable_item_id(item),
         "queue_number": item["queue_number"],
         "episode_label": item["episode_label"],
@@ -394,26 +413,23 @@ def generated_metadata(item: dict[str, Any], stats: dict[str, Any], item_dir: Pa
     return metadata
 
 
-def source_exists(item: dict[str, Any], title: str) -> str | None:
+def source_exists(item: dict[str, Any], _title: str) -> str | None:
+    expected_item_id = stable_item_id(item)
     with SessionLocal() as session:
-        sources = session.execute(select(Source)).scalars().all()
-        for source in sources:
+        matches = []
+        for source in session.execute(select(Source)).scalars():
             metadata = source.metadata_json or {}
             if (
                 metadata.get("source_tree_slug") == CORPUS_SLUG
                 and metadata.get("episode_guid") == item["guid"]
+                and metadata.get("transcript_provenance") == "generated_faster_whisper_remote"
                 and metadata.get("preference_label") == "generated"
+                and metadata.get("source_item_id") == expected_item_id
             ):
-                return source.id
-        for source in session.execute(select(Source).where(Source.title == title)).scalars():
-            metadata = source.metadata_json or {}
-            known_guid = metadata.get("episode_guid") or metadata.get("guid") or source.external_id
-            if known_guid and str(known_guid) != item["guid"]:
-                continue
-            if source.canonical_url and source.canonical_url != item["canonical_url"]:
-                continue
-            return source.id
-        return None
+                matches.append(source.id)
+        if len(matches) > 1:
+            raise RuntimeError(f"multiple generated sources found for {item['guid']}: {matches}")
+        return matches[0] if matches else None
 
 
 def import_payload(*, title: str, canonical_url: str, segments: list[dict[str, Any]], metadata: dict[str, Any]) -> str:
@@ -425,13 +441,15 @@ def import_payload(*, title: str, canonical_url: str, segments: list[dict[str, A
                 "show_title": SHOW_TITLE,
                 "episode_title": title,
                 "episode_url": canonical_url,
+                "source_type": ITEM_TYPE,
+                "provider": PROVIDER,
                 "language": "en",
                 "segments": propagated,
                 "entities": ALEPH_BETA_ENTITIES,
                 "metadata_json": metadata,
             },
         )
-        source.author = PUBLISHER
+        source.author = AUTHOR
         source.provider = PROVIDER
         if episode_guid := metadata.get("episode_guid"):
             source.external_id = str(episode_guid)
@@ -446,7 +464,17 @@ def reconcile_existing_source(source_id: str, metadata: dict[str, Any], canonica
         source = session.get(Source, source_id)
         if source is None:
             raise RuntimeError(f"existing source disappeared: {source_id}")
-        source.author = PUBLISHER
+        existing_metadata = source.metadata_json or {}
+        expected_identity = metadata["source_item_id"]
+        if not (
+            existing_metadata.get("source_tree_slug") == CORPUS_SLUG
+            and existing_metadata.get("episode_guid") == metadata["episode_guid"]
+            and existing_metadata.get("transcript_provenance") == "generated_faster_whisper_remote"
+            and existing_metadata.get("preference_label") == "generated"
+            and existing_metadata.get("source_item_id") == expected_identity
+        ):
+            raise RuntimeError(f"refusing to reconcile non-importer-owned source {source_id}")
+        source.author = AUTHOR
         source.provider = PROVIDER
         source.canonical_url = canonical_url
         source.external_id = str(metadata["episode_guid"])
@@ -536,11 +564,8 @@ def update_state(path: Path, item: dict[str, Any], result: dict[str, Any]) -> No
     write_json_atomic(path, state)
 
 
-def run_import(*, citara_root: Path, manifest_path: Path) -> list[dict[str, Any]]:
-    root = citara_root.expanduser().resolve()
-    configure_citara_root(root)
-    init_db()
-    manifest_path = manifest_path.expanduser().resolve()
+def _run_import_locked(*, citara_root: Path, manifest_path: Path) -> list[dict[str, Any]]:
+    root = citara_root
     manifest = load_manifest(manifest_path)
     candidates = load_candidates(manifest, manifest_path.parent)
     artifact_root = root / "source-artifacts" / CORPUS_SLUG
@@ -600,17 +625,13 @@ def run_import(*, citara_root: Path, manifest_path: Path) -> list[dict[str, Any]
     return results
 
 
-def backup_database(root: Path) -> Path | None:
-    database = root / "citara.db"
-    if not database.exists():
-        return None
-    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")
-    backup = root / f"citara.backup-before-podcast-artifact-import-{stamp}.db"
-    # SQLite's online backup API includes committed WAL pages and produces a
-    # transactionally consistent snapshot even while another reader is open.
-    with sqlite3.connect(database) as source, sqlite3.connect(backup) as destination:
-        source.backup(destination)
-    return backup
+def run_import(*, citara_root: Path, manifest_path: Path) -> list[dict[str, Any]]:
+    root = citara_root.expanduser().resolve()
+    manifest = manifest_path.expanduser().resolve()
+    configure_citara_root(root)
+    init_db()
+    with import_lock(root):
+        return _run_import_locked(citara_root=root, manifest_path=manifest)
 
 
 def main() -> None:
@@ -621,7 +642,7 @@ def main() -> None:
 
     root = args.citara_root.expanduser().resolve()
     manifest = args.manifest or root / "source-artifacts" / CORPUS_SLUG / "remote-openai" / "approved-queue.json"
-    backup = backup_database(root)
+    backup = backup_database(root / "citara.db", "podcast-artifact-import")
     if backup:
         print(f"backup={backup}", flush=True)
     results = run_import(citara_root=root, manifest_path=manifest)

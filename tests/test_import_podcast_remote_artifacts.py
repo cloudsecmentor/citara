@@ -11,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from citara.core.entities import list_source_entities
+from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.models import Chunk, Entity, Source, SourceEntity, TranscriptSegment
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "import_podcast_remote_artifacts.py"
@@ -338,7 +339,7 @@ def test_cli_binds_to_citara_root_backs_up_db_and_ignores_ambient_database_url(t
     with sqlite3.connect(ambient_db) as connection:
         assert connection.execute("SELECT value FROM ambient_sentinel").fetchone() == ("untouched",)
         assert connection.execute("SELECT COUNT(*) FROM sqlite_master WHERE name = 'sources'").fetchone() == (0,)
-    backups = list(root.glob("citara.backup-before-podcast-artifact-import-*.db"))
+    backups = list((root / "backups").glob("citara-before-podcast-artifact-import-*.db"))
     assert len(backups) == 1
 
 
@@ -391,6 +392,8 @@ def test_manifest_imports_youtube_corpus_without_podcast_metadata(tmp_path: Path
             "source_tree_type": "video_channel",
             "item_type": "youtube_video",
             "publisher": "Aleph Beta",
+            "author": "Tim Mackie",
+            "publisher_slug": "tim-mackie-archives",
             "provider": "youtube",
             "episodes": [item],
         },
@@ -404,6 +407,9 @@ def test_manifest_imports_youtube_corpus_without_podcast_metadata(tmp_path: Path
         source = session.execute(select(Source)).scalar_one()
         metadata = source.metadata_json
         assert metadata["source_tree_type"] == "video_channel"
+        assert metadata["publisher_slug"] == "tim-mackie-archives"
+        assert source.author == "Tim Mackie"
+        assert source.source_type == "youtube_video"
         assert source.provider == "youtube"
         assert "acronym" not in metadata
         assert metadata["aliases"] == []
@@ -414,3 +420,40 @@ def test_manifest_imports_youtube_corpus_without_podcast_metadata(tmp_path: Path
     source_artifact = json.loads((item_dir / "source.json").read_text(encoding="utf-8"))
     assert source_artifact["source_tree_type"] == "video_channel"
     assert source_artifact["item_type"] == "youtube_video"
+
+
+def test_configure_root_handles_url_reserved_characters(tmp_path: Path) -> None:
+    root = tmp_path / "has?mark#and%text"
+    importer.configure_citara_root(root)
+    importer.init_db()
+    assert (root / "citara.db").exists()
+
+
+def test_same_title_published_source_is_not_claimed_or_mutated(tmp_path: Path) -> None:
+    root, manifest_path, _state_path, item = setup_roots(tmp_path)
+    importer.configure_citara_root(root)
+    importer.init_db()
+    title = "A Book Like No Other: The Episode (Generated Transcript)"
+    with importer.SessionLocal() as session:
+        published = add_transcript_source(
+            session,
+            payload={
+                "show_title": "Published",
+                "episode_title": title,
+                "episode_url": None,
+                "segments": [{"start_ms": 0, "end_ms": 1000, "text": "Published text."}],
+                "metadata_json": {"transcript_provenance": "published_transcript"},
+            },
+        )
+        published_id = published.id
+
+    result = importer.run_import(citara_root=root, manifest_path=manifest_path)
+
+    assert result[0]["status"] == "imported"
+    with importer.SessionLocal() as session:
+        sources = session.execute(select(Source)).scalars().all()
+        assert len(sources) == 2
+        original = session.get(Source, published_id)
+        assert original is not None
+        assert original.metadata_json["transcript_provenance"] == "published_transcript"
+        assert original.external_id is None

@@ -145,8 +145,8 @@ def test_citara_root_overrides_ambient_database_url(tmp_path: Path) -> None:
     with sqlite3.connect(ambient_db) as connection:
         assert connection.execute("SELECT value FROM ambient_sentinel").fetchone() == ("untouched",)
         assert connection.execute("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'sources'").fetchone() == (0,)
-    assert list(citara_root.glob("citara.backup-before-bibleproject-import-*.db"))
-    assert not list(tmp_path.glob("ambient.backup-before-bibleproject-import-*.db"))
+    assert list((citara_root / "backups").glob("citara-before-bibleproject-import-*.db"))
+    assert not (tmp_path / "backups").exists()
 
 
 def test_uncertain_swap_cleanup_revalidates_before_deleting_promoted_replacement(tmp_path: Path) -> None:
