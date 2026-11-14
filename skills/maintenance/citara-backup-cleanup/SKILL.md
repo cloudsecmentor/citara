@@ -1,6 +1,6 @@
 ---
 name: citara-backup-cleanup
-description: Retain the three newest Citara backup generations.
+description: Retain only the newest Citara backup generation.
 version: 0.1.0
 author: Seb, Hermes Agent
 license: MIT
@@ -25,7 +25,7 @@ Do not use this skill to delete the live Citara database, source artifacts, unre
 
 ## Prerequisites
 
-- Python 3.9 or newer.
+- Python 3.11 or newer.
 - A writable Citara backup directory.
 - `CITARA_DATA_ROOT` set when data is not under `~/code/citara-data`.
 
@@ -43,10 +43,10 @@ Apply retention through `terminal`:
 python skills/maintenance/citara-backup-cleanup/scripts/cleanup_backups.py
 ```
 
-The default keeps three newest timestamp generations. Override the directory or retention count only when explicitly requested:
+The default keeps only the newest timestamp generation, matching `citara.core.backups`, which already prunes older backups every time a new one is written. Use this skill to tidy up after manual copies. Override the directory or retention count only when explicitly requested:
 
 ```text
-python skills/maintenance/citara-backup-cleanup/scripts/cleanup_backups.py --backup-dir /path/to/backups --keep 3
+python skills/maintenance/citara-backup-cleanup/scripts/cleanup_backups.py --backup-dir /path/to/backups --keep 1
 ```
 
 ## Procedure
@@ -59,7 +59,8 @@ python skills/maintenance/citara-backup-cleanup/scripts/cleanup_backups.py --bac
 ## Pitfalls
 
 - Retention is by **generation**, not individual file. A `.db` and `.tar.gz` carrying the same UTC timestamp remain together.
-- Only regular, non-symlink files with a `YYYYMMDDTHHMMSSZ` filename timestamp and a recognized backup suffix are eligible.
+- Only regular, non-symlink files with a `YYYYMMDDTHHMMSSZ` timestamp (optionally including fractional seconds before `Z`) and a recognized backup suffix are eligible.
+- Cleanup and the shared backup helper coordinate through a database-scoped interprocess lock beside the database (`.<database filename>.backup.lock`). Never delete or replace it while an operation is active. For a database not named `citara.db`, pass `--database /absolute/path/to/custom.sqlite` so cleanup uses the same lock as its writer.
 - Unknown files and incomplete names are ignored rather than deleted.
 - `--keep` must be at least 1.
 

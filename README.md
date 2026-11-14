@@ -411,6 +411,22 @@ episode GUID, duration, and transcript provenance metadata.
 
 </details>
 
+### Approved YouTube caption artifacts
+
+Import already-downloaded YouTube JSON3 captions using an approved manifest:
+
+```bash
+uv run python scripts/import_youtube_captions.py \
+  --citara-root /absolute/path/to/citara-data \
+  --manifest /absolute/path/to/approved-queue.json
+```
+
+The manifest supplies video identities, corpus/publisher metadata, and caption paths. Caption files
+must resolve under the manifest's sibling `captions/` directory; this command does not download
+videos or bypass content permissions. It preserves timing and citation anchors, and only reconciles
+sources with an exact importer-owned identity. Remote-artifact and caption importer scripts use
+POSIX file locks and currently run on macOS/Linux; the portable MCP and ZIP workflows are separate.
+
 Podcast citations include clickable timestamp links when a chunk has `start_ms` and the source has a
 `canonical_url`:
 
@@ -592,6 +608,37 @@ Optional local hooks:
 uv run pre-commit install
 uv run pre-commit install --hook-type pre-push
 ```
+
+### SQLite import backups and retention
+
+The BEMA, BibleProject, Textinus, remote-artifact, and YouTube-caption import CLIs use
+`citara.core.backups` before mutation. It takes a SQLite online snapshot, verifies integrity,
+and stores it under `<data root>/backups/`.
+
+**Automatic retention keeps one backup generation only.** After a new snapshot succeeds, older
+recognized backup generations and legacy root-level `citara.backup-*.db` files are deleted.
+Companion files from the retained generation stay together. This is a recent restore point,
+not a historical archive: keep independent backups elsewhere if you need longer retention.
+The backup-cleanup skill uses the same one-generation default; preview its deletions with `--dry-run`.
+
+### BEMA metadata backfill
+
+Preview missing/null episode numbers, season normalization, and artifact reconciliation against an
+explicit local corpus. Dry-run does not create a missing database:
+
+```bash
+uv run python scripts/backfill_bema_episode_metadata.py --citara-root /absolute/path/to/citara-data
+```
+
+Review the printed target and plan before applying:
+
+```bash
+uv run python scripts/backfill_bema_episode_metadata.py --citara-root /absolute/path/to/citara-data --apply
+```
+
+The utility backs up before changes. It preserves unrelated metadata, preflights source manifests,
+and reconciles artifacts independently so an interrupted artifact update can be retried.
+Do not run this on a production corpus without reviewing the dry-run and backup policy above.
 
 ### Database migrations
 

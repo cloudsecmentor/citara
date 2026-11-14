@@ -8,9 +8,7 @@ import email.utils
 import json
 import os
 import re
-import shutil
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +23,7 @@ from artifact_paths import apply_default_env, data_root
 DEFAULT_CITARA_ROOT = data_root()
 apply_default_env(DEFAULT_CITARA_ROOT)
 
+from citara.core.backups import backup_database
 from citara.core.db import SessionLocal, init_db
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.models import Chunk, Embedding, IngestionJob, Source, SourceEntity, TranscriptSegment
@@ -152,9 +151,8 @@ def main() -> None:
     os.environ["OBJECT_STORE_PATH"] = str(args.citara_root / "object-store")
 
     db_path = args.citara_root / "citara.db"
-    if db_path.exists():
-        backup = db_path.with_suffix(f".backup-before-textinus-import-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.db")
-        shutil.copy2(db_path, backup)
+    backup = backup_database(db_path, "textinus-import")
+    if backup:
         print(f"backup={backup}")
     init_db()
 

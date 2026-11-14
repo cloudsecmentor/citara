@@ -7,7 +7,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import sys
 import urllib.request
 from datetime import UTC, datetime
@@ -28,6 +27,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from citara.connectors.podcasts.bibleproject import clean_transcript_text, extract_pdf_text, make_segments
+from citara.core.backups import backup_database
 from citara.core.ingestion.transcript import add_transcript_source
 from citara.core.models import Base, Chunk, Embedding, IngestionJob, Source, SourceEntity, TranscriptSegment
 
@@ -527,9 +527,8 @@ def main() -> None:
     raw_root = artifact_root / "remote-openai"
     status_path = root / "import-state" / "bibleproject_import_status.json"
     db_path = root / "citara.db"
-    if db_path.exists():
-        backup = db_path.with_suffix(f".backup-before-bibleproject-import-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}.db")
-        shutil.copy2(db_path, backup)
+    backup = backup_database(db_path, "bibleproject-import")
+    if backup:
         print(f"backup={backup}", flush=True)
     init_db()
     update_status(

@@ -28,6 +28,13 @@ fusing were the problem. Measured on the 1,444-source / 58,471-chunk corpus.
 
 ### Added
 
+- Manifest-approved YouTube JSON3 caption import with word/timestamp citation anchors,
+  source ownership checks, resumable reconciliation, and regression tests.
+- Shared SQLite online backup helper used by the podcast importers. Successful integrity-checked
+  snapshots now retain only the latest generation under `backups/`; older recognized generations
+  and legacy root-level backups are pruned. Failed snapshots preserve the previous backup.
+- BEMA episode/season metadata backfill utility with dry-run output and explicit `--apply`.
+
 - Portable `skills/citara/` agent skill with runtime setup, MCP verification, and citation-backed
   retrieval instructions; README now leads with a copy-paste agent installation message.
 - `scripts/citara_bundle.py export|inspect|import` for SQLite corpus sharing: online snapshots,
