@@ -25,7 +25,9 @@ jobs:
       - name: Format check
         run: uv run ruff format --check src tests scripts
       - name: Type check
-        run: uv run mypy
+        # Match the interpreter so dependency stubs may use its syntax.
+        # The 3.11 matrix entry still checks the minimum supported version.
+        run: uv run mypy --python-version ${{ matrix.python-version }}
       - name: Alembic migrations on a fresh database
         run: uv run alembic upgrade head
         env:
